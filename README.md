@@ -84,7 +84,7 @@ And iterating all key-value pair would give:
 
 ## Limitations
 
-The main limitation is that the types we can represent are fairly basic, due to how the non-extended parameter protocol works, so all paths in the tree must end up at one of the following primitive types. Technically the protocol also supports f64, u64 and i64, but since the payload can only be 32 bits, I think it makes more sense to do without.
+The main limitation is that the types we can represent are fairly basic, due to how the non-extended parameter protocol works, so all paths in the tree must end up at one of the following primitive types. Technically the protocol also supports f64, u64 and i64, but since the payload can only be 32 bits, it makes more sense to do without.
 
 ```rust
 pub enum LeafVal {
@@ -97,5 +97,3 @@ pub enum LeafVal {
     F32(f32),
 }
 ```
-
-Also as far as I can tell, enums are also not possible, though new-type style bitflags are possible
