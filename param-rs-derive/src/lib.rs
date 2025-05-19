@@ -1,7 +1,7 @@
 use proc_macro::TokenStream;
 use quote::quote;
 use syn::{
-    Attribute, Data, DeriveInput, Fields, FieldsNamed, Ident, Lit, MetaNameValue, parse_macro_input,
+    parse_macro_input, Attribute, Data, DeriveInput, Fields, FieldsNamed, Ident, Lit, MetaNameValue,
 };
 
 #[proc_macro_derive(Tree, attributes(node))]
@@ -73,7 +73,7 @@ fn generate_named_fields_impl(
     });
 
     quote! {
-        impl Tree for #name {
+        impl ::param_rs::Tree for #name {
             fn get_ref<'a>(&'a self, path: &str) -> Option<::param_rs::EitherRef<'a>> {
                 use ::param_rs::IntoEither;
                 match path {
@@ -99,7 +99,7 @@ fn generate_named_fields_impl(
 
 fn generate_unit_struct_impl(name: &Ident) -> proc_macro2::TokenStream {
     quote! {
-        impl Tree for #name {
+        impl ::param_rs::Tree for #name {
             fn get_ref<'a>(&'a self, path: &str) -> Option<::param_rs::EitherRef<'a>> {
                 use ::param_rs::IntoEither;
                 if path.is_empty() {
