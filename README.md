@@ -1,0 +1,101 @@
+# Small Mavlink parameter system
+
+Mavlink has a parameter protocol, that allows for enumerating, querying and modifying parameters based on an up to 16-character string/key, which maps to some primitive type (signed/unsigned integers and float) value. This allows for ground stations to request and list all parameters of systems that support the protocol, as well as save the config of a system as a flat list of keys and values. Even though Rusts type system allows for much more advanced types, supporting such a simple system would be beneficial for Mavlink capable MAV systems. That is what this crate seeks to accomplish.
+
+## Core idea
+
+The configuration of many systems can represented as a nested set of structs, arrays and tuples, which at some point end up at a primitive type, such as an integer or float. That means structuring our configs will remain fairly simple, as long as we stick to structs and Mavlink parameter protocol-compatible primitives.
+
+For example an implementation of the Mavlink server itself may have the parameter tree:
+
+```rust
+#[derive(param_rs::Tree)]
+struct MavlinkParams {
+    timeout_ms: u16,
+    id: MavId,
+}
+
+#[derive(param_rs::Tree)]
+struct MavId {
+    sys: u8,
+    com: u8,
+}
+```
+
+We can now iteratively traverse the tree, to list out all parameters, assuming "mav" is the root name of this parameter tree. These can for example be tranmitted to a ground station.
+
+```rust
+// Print out all paths with the "mav" prefix
+for (name, leaf) in param_rs::leaf_iter(&mav, "mav") {
+    println!("{:?} = {:?}", name.as_str(), leaf);
+}
+```
+
+Which for our struct may print
+
+```
+mav.timeout_ms = U16(5000)
+mav.id.sys = U8(1)
+mav.id.com = U8(1)
+```
+
+Alternatively we can index into the struct using a provided string, to modify a parameter:
+
+```rust
+// Mutable get the mav system id by string-lookup
+match param_rs::get_leaf_mut(&mut mav, ".id.sys") {
+    Some(param_rs::LeafMut::U8(sys_id)) => *sys_id = 100
+    _ => println!("warn: No such parameter"),
+}
+```
+
+We may notice that the syntax for the stringified key and the Rust code to access the same value is very similar, which is intentional. This even extends to arrays and tuples:
+
+```rust
+#[derive(param_rs::Tree, Default)]
+struct Parameters {
+    cfg: Config,
+}
+
+#[derive(param_rs::Tree, Default)]
+struct Config {
+    var: (u8, f32, i16),
+}
+
+let mut param = Parameters::default()
+
+// Regular Rust syntax
+param.cfg.var.0 = 255;
+
+// Stringy syntax
+match param_rs::get_leaf_mut(&mut param, ".cfg.var.1") {
+    Some(param_rs::LeafMut::F32(var_0)) => *var_0 = 2.718,
+    _ => println!("warn: No such parameter"),
+}
+```
+
+And iterating all key-value pair would give:
+
+```
+"param.cfg.var.0" = U8(255)
+"param.cfg.var.1" = F32(2.718)
+"param.cfg.var.2" = I16(0)
+```
+
+## Limitations
+
+The main limitation is that the types we can represent are fairly basic, due to how the non-extended parameter protocol works, so all paths in the tree must end up at one of the following primitive types. Technically the protocol also supports f64, u64 and i64, but since the payload can only be 32 bits, I think it makes more sense to do without.
+
+```rust
+pub enum LeafVal {
+    U8(u8),
+    I8(i8),
+    U16(u16),
+    I16(i16),
+    U32(u32),
+    I32(i32),
+    F32(f32),
+}
+```
+
+Also as far as I can tell, enums are also not possible, though new-type style bitflags are possible
