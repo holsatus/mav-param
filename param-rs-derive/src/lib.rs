@@ -4,7 +4,7 @@ use syn::{
     parse_macro_input, Attribute, Data, DeriveInput, Fields, FieldsNamed, Ident, Lit, MetaNameValue,
 };
 
-#[proc_macro_derive(Tree, attributes(node))]
+#[proc_macro_derive(Tree, attributes(tree))]
 pub fn param_derive(input: TokenStream) -> TokenStream {
     // Parse the input tokens into a syntax tree
     let input = parse_macro_input!(input as DeriveInput);
@@ -133,7 +133,7 @@ fn generate_unit_struct_impl(name: &Ident) -> proc_macro2::TokenStream {
 // Updated function to extract rename attribute using syn 2.0 API
 fn find_rename_attr(attrs: &[Attribute]) -> Option<String> {
     for attr in attrs {
-        if attr.path().is_ident("param") {
+        if attr.path().is_ident("tree") {
             // Use the parse_args method for more reliable parsing in syn 2.0
             let meta = match attr.parse_args::<MetaNameValue>() {
                 Ok(meta) => meta,
