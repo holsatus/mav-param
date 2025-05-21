@@ -5,7 +5,7 @@ use syn::{
 };
 
 #[proc_macro_derive(Tree, attributes(tree))]
-pub fn param_derive(input: TokenStream) -> TokenStream {
+pub fn tree_derive(input: TokenStream) -> TokenStream {
     // Parse the input tokens into a syntax tree
     let input = parse_macro_input!(input as DeriveInput);
     let name = &input.ident;
@@ -15,11 +15,6 @@ pub fn param_derive(input: TokenStream) -> TokenStream {
         Data::Struct(data_struct) => match &data_struct.fields {
             // Handle normal structs with named fields
             Fields::Named(fields_named) => generate_named_fields_impl(name, fields_named),
-
-            // Handle unit/newtype structs (single unnamed field)
-            Fields::Unnamed(fields_unnamed) if fields_unnamed.unnamed.len() == 1 => {
-                generate_unit_struct_impl(name)
-            }
 
             _ => panic!(
                 "Tree derive only supports structs with named fields or unit structs with a single field"
@@ -56,14 +51,14 @@ fn generate_named_fields_impl(
     // Generate match arms for get_ref using the renamed fields
     let get_ref_arms = field_info.iter().map(|(field_name, param_name)| {
         quote! {
-            #param_name => Some(self.#field_name.as_either_ref()),
+            #param_name => Some(self.#field_name.node_ref()),
         }
     });
 
     // Generate match arms for get_mut using the renamed fields
     let get_mut_arms = field_info.iter().map(|(field_name, param_name)| {
         quote! {
-            #param_name => Some(self.#field_name.as_either_mut()),
+            #param_name => Some(self.#field_name.node_mut()),
         }
     });
 
@@ -73,18 +68,18 @@ fn generate_named_fields_impl(
     });
 
     quote! {
-        impl ::param_rs::Tree for #name {
-            fn get_ref<'a>(&'a self, path: &str) -> Option<::param_rs::EitherRef<'a>> {
-                use ::param_rs::IntoEither;
-                match path {
+        impl param_rs::Tree for #name {
+            fn get_ref<'a>(&'a self, node: &str) -> Option<param_rs::NodeRef<'a>> {
+                use param_rs::Node;
+                match node {
                     #(#get_ref_arms)*
                     _ => None,
                 }
             }
 
-            fn get_mut<'a>(&'a mut self, path: &str) -> Option<::param_rs::EitherMut<'a>> {
-                use ::param_rs::IntoEither;
-                match path {
+            fn get_mut<'a>(&'a mut self, node: &str) -> Option<param_rs::NodeMut<'a>> {
+                use param_rs::Node;
+                match node {
                     #(#get_mut_arms)*
                     _ => None,
                 }
@@ -97,37 +92,33 @@ fn generate_named_fields_impl(
     }
 }
 
-fn generate_unit_struct_impl(name: &Ident) -> proc_macro2::TokenStream {
+#[proc_macro_derive(Node)]
+pub fn transparent(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as DeriveInput);
+    let name = &input.ident;
+    
+    // Verify it's a newtype struct
+    match &input.data {
+        Data::Struct(data) => match &data.fields {
+            Fields::Unnamed(fields) if fields.unnamed.len() == 1 => {
+                // Valid newtype struct
+            },
+            _ => panic!("Transparent derive only works on newtype structs with a single field")
+        },
+        _ => panic!("Transparent derive only works on structs")
+    };
+    
     quote! {
-        impl ::param_rs::Tree for #name {
-            fn get_ref<'a>(&'a self, path: &str) -> Option<::param_rs::EitherRef<'a>> {
-                use ::param_rs::IntoEither;
-                if path.is_empty() {
-                    // For empty path, return the field as EitherRef
-                    Some(self.0.as_either_ref())
-                } else {
-                    // We can't forward calls to Tree methods on the inner field
-                    // since it only implements IntoEither
-                    None
-                }
+        impl param_rs::Node for #name {
+            fn node_ref(&self) -> param_rs::NodeRef<'_> {
+                self.0.node_ref()
             }
-
-            fn get_mut<'a>(&'a mut self, path: &str) -> Option<::param_rs::EitherMut<'a>> {
-                use ::param_rs::IntoEither;
-                if path.is_empty() {
-                    // For empty path, return the field as EitherMut
-                    Some(self.0.as_either_mut())
-                } else {
-                    None
-                }
-            }
-
-            fn entries(&self) -> &'static [&'static str] {
-                // Unit structs with IntoEither fields have no entries
-                &[]
+            
+            fn node_mut(&mut self) -> param_rs::NodeMut<'_> {
+                self.0.node_mut()
             }
         }
-    }
+    }.into()
 }
 
 // Updated function to extract rename attribute using syn 2.0 API

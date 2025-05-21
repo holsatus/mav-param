@@ -1,126 +1,100 @@
-use param_rs::{LeafRef, Tree};
+use param_rs::{Parameter, Value};
 
-struct Root<T: Tree> {
-    name: &'static str,
-    tree: T,
+#[derive(param_rs::Tree)]
+struct RateParameters {
+    #[tree(rename = "rol")]
+    roll: AxisParameters,
+    #[tree(rename = "pit")]
+    pitch: AxisParameters,
+    #[tree(rename = "yaw")]
+    yaw: AxisParameters,
+    /// Slewrate limiter for reference signal
+    ref_slew: f32,
+    /// Low-pass filter for reference signal
+    ref_lp: f32,
 }
 
-impl<T: Tree> Root<T> {
-    pub fn print_leaves(&self) {
-        for (name, leaf) in param_rs::leaf_iter(self, self.name) {
-            println!(
-                "{:?} => {:?} (str_len: {})",
-                name.as_str(),
-                leaf,
-                name.as_str().len()
-            );
+impl Default for RateParameters {
+    fn default() -> Self {
+        RateParameters {
+            roll: AxisParameters::default(),
+            pitch: AxisParameters::default(),
+            yaw: AxisParameters::default(),
+            ref_slew: 300.0,
+            ref_lp: 0.004,
         }
     }
+}
 
-    pub fn get_leaf_ref(&self, path: &str) -> Option<LeafRef<'_>> {
-        let path = path.strip_prefix(self.name)?;
-        param_rs::get_leaf_ref(self, path)
+#[derive(param_rs::Tree)]
+struct AxisParameters {
+    /// Proportional gain
+    p: Gain,
+    /// Integral gain
+    i: Gain,
+    /// Derivative gain
+    d: Gain,
+    /// Configuration flags
+    cfg: AxisFlags,
+    /// Time-constant of D-term LP filter
+    dtau: f32,
+    /// Prediction model time-constant
+    pred: f32,
+    /// Complementary filter time constant
+    comp: f32,
+}
+
+#[derive(param_rs::Node)]
+struct Gain(f32);
+
+impl Default for AxisParameters {
+    fn default() -> Self {
+        AxisParameters {
+            p: Gain(20.),
+            i: Gain(1.),
+            d: Gain(1.),
+            cfg: AxisFlags::default(),
+            dtau: 0.001,
+            pred: 0.04,
+            comp: 0.01,
+        }
     }
 }
 
-impl<T: Tree> Tree for Root<T> {
-    fn get_ref<'a>(&'a self, field: &str) -> Option<param_rs::EitherRef<'a>> {
-        self.tree.get_ref(field)
-    }
+#[derive(param_rs::Node)]
+struct AxisFlags(u8);
 
-    fn get_mut<'a>(&'a mut self, field: &str) -> Option<param_rs::EitherMut<'a>> {
-        self.tree.get_mut(field)
+bitflags::bitflags! {
+    impl AxisFlags: u8 {
+        const D_TERM_LP = 1 << 0;
+        const REF_SLEW = 1 << 1;
+        const COMP_PRED = 1 << 2;
     }
+}
 
-    fn entries(&self) -> &'static [&'static str] {
-        self.tree.entries()
+impl Default for AxisFlags {
+    fn default() -> Self {
+        use AxisFlags as A;
+        A::D_TERM_LP | A::REF_SLEW | A::COMP_PRED
     }
 }
 
 fn main() {
-    #[derive(param_rs::Tree, Default)]
-    struct MavlinkParams {
-        data_rate: u32,
-        timeout_ms: u16,
-        profile: Profile,
-        stream: [Stream; 10],
-        id: MavId,
+    let params = RateParameters::default();
+
+    for result in param_rs::param_iter(&params, "rate") {
+        match result {
+            Ok(Parameter { ident, value }) => {
+                println!("{:?} => {:?}", ident.as_str(), value,);
+            }
+            Err(error) => {
+                println!("Iteration error: {:?}", error);
+            }
+        }
     }
 
-    #[derive(param_rs::Tree, Default)]
-    struct MavId {
-        sys: u8,
-        com: u8,
-    }
-
-    #[derive(param_rs::Tree, Default)]
-    struct Stream {
-        id: u32,
-        hz: f32,
-    }
-
-    let mav = Root {
-        name: "mav",
-        tree: MavlinkParams::default(),
-    };
-
-    mav.print_leaves();
-
-    match mav.get_leaf_ref("mav.id.sys") {
-        Some(LeafRef::U8(sys_id)) => println!("System id: {sys_id}"),
+    match param_rs::get_val(&params, ".pit.p") {
+        Some(Value::F32(sys_id)) => println!("Parameter: {sys_id}"),
         _ => println!("warn: No such parameter"),
-    }
-
-    #[derive(param_rs::Tree, Default)]
-    struct Parameters {
-        cfg: Config,
-    }
-
-    #[derive(param_rs::Tree, Default)]
-    struct Config {
-        var: (u8, f32, i16),
-    }
-
-    let mut param = Parameters::default();
-    // Stringy syntax
-    match param_rs::get_leaf_mut(&mut param, ".cfg.var.1") {
-        Some(param_rs::LeafMut::F32(var_0)) => *var_0 = 2.718,
-        _ => println!("warn: No such parameter"),
-    }
-
-    for (name, leaf) in param_rs::leaf_iter(&param, "param") {
-        println!("{:?} = {:?}", name.as_str(), leaf);
-    }
-}
-
-#[derive(Tree, Default)]
-struct AxisConfig(u8);
-
-bitflags::bitflags! {
-    impl AxisConfig: u8 {
-        const WRAPPING = 1 << 0;
-        const SATURATE = 1 << 1;
-    }
-}
-
-#[derive(Tree, Default)]
-struct RcMapVar(u8);
-
-bitflags::bitflags! {
-    impl RcMapVar: u8 {
-        const NONE = 0x00;
-        const ACTUAL = 0x01;
-        const LINEAR = 0x02;
-    }
-}
-
-#[derive(Tree, Default)]
-struct Profile(u8);
-
-bitflags::bitflags! {
-    impl Profile: u8 {
-        const ATTITUDE = 1 << 0;
-        const POSITION = 1 << 1;
-        const CHANNELS = 1 << 2;
     }
 }
