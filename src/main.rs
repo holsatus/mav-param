@@ -1,4 +1,53 @@
+use std::str;
+
 use param_rs::{Parameter, Value};
+
+struct OptionalStruct {
+    regular: f32,
+    value1: Option<i32>,
+    value2: Option<(f32, f32)>,
+}
+
+#[derive(param_rs::Tree)]
+struct OptionalParams {
+    opt: Optional,
+    regular: f32,
+    value1: i32,
+    value2: (f32, f32),
+}
+
+#[derive(param_rs::Node)]
+struct Optional(u8);
+
+bitflags::bitflags! {
+    impl Optional: u8 {
+        const VALUE_1 = 1 << 0;
+        const VALUE_2 = 1 << 1;
+    }
+}
+impl From<OptionalParams> for OptionalStruct {
+    fn from(data: OptionalParams) -> Self {
+        OptionalStruct {
+            regular: data.regular,
+            value1: data.opt.contains(Optional::VALUE_1).then(||data.value1),
+            value2: data.opt.contains(Optional::VALUE_2).then(||data.value2),
+        }
+    }
+}
+
+impl From<OptionalStruct> for OptionalParams {
+    fn from(data: OptionalStruct) -> Self {
+        let mut opt = Optional::empty();
+        opt.set(Optional::VALUE_1, data.value1.is_some());
+        opt.set(Optional::VALUE_2, data.value2.is_some());
+        OptionalParams {
+            opt,
+            regular: data.regular,
+            value1: data.value1.unwrap_or_default(),
+            value2: data.value2.unwrap_or_default(),
+        }
+    }
+}
 
 #[derive(param_rs::Tree)]
 struct RateParameters {
@@ -82,7 +131,7 @@ impl Default for AxisFlags {
 fn main() {
     let params = RateParameters::default();
 
-    for result in param_rs::param_iter(&params, "rate") {
+    for result in param_rs::param_iter_named(&params, "rate") {
         match result {
             Ok(Parameter { ident, value }) => {
                 println!("{:?} => {:?}", ident.as_str(), value,);
@@ -93,8 +142,18 @@ fn main() {
         }
     }
 
-    match param_rs::get_val(&params, ".pit.p") {
+    match param_rs::get_value(&params, ".pit.p") {
         Some(Value::F32(sys_id)) => println!("Parameter: {sys_id}"),
         _ => println!("warn: No such parameter"),
     }
+
+    let mut string = [b'\0'; 16];
+
+    string[..5].copy_from_slice(b"hello");
+
+    let ident = str::from_utf8(&string).unwrap();
+
+    println!("Ident: {}", ident);
+
+    let val = param_rs::value::from_bytewise::<u8>(12345.2);
 }

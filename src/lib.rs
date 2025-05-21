@@ -10,7 +10,7 @@ pub use value::Value;
 
 pub use param_rs_derive::{Node, Tree};
 
-/// A parameter
+/// A parameter combines a 16-byte Mavlink identifier with a value.
 pub struct Parameter {
     pub ident: ident::Ident,
     pub value: value::Value,
@@ -28,12 +28,17 @@ pub trait Tree {
 }
 
 /// Iterate all values (leaves) of this tree
-pub fn param_iter<'a>(tree: &'a dyn Tree, name: &str) -> iter::ValueIter<'a> {
-    iter::ValueIter::new(tree, name)
+pub fn param_iter_named<'a>(tree: &'a dyn Tree, name: &str) -> iter::ValueIter<'a> {
+    iter::ValueIter::new(tree, Some(name))
+}
+
+/// Iterate all values (leaves) of this tree
+pub fn param_iter<'a>(tree: &'a dyn Tree) -> iter::ValueIter<'a> {
+    iter::ValueIter::new(tree, None)
 }
 
 /// Returns the value for the given identifier
-pub fn get_val<'a>(mut tree: &'a dyn Tree, ident: &str) -> Option<value::Value> {
+pub fn get_value<'a>(mut tree: &'a dyn Tree, ident: &str) -> Option<value::Value> {
     let mut segments = ident.trim_start_matches('.').split('.');
     loop {
         let next = segments.next()?;
@@ -45,7 +50,7 @@ pub fn get_val<'a>(mut tree: &'a dyn Tree, ident: &str) -> Option<value::Value> 
 }
 
 /// Returns a mutable reference to the value for the given identifier
-pub fn get_mut<'a>(mut node: &'a mut dyn Tree, ident: &str) -> Option<value::ValueMut<'a>> {
+pub fn get_value_mut<'a>(mut node: &'a mut dyn Tree, ident: &str) -> Option<value::ValueMut<'a>> {
     let mut segments = ident.trim_start_matches('.').split('.');
     loop {
         let next = segments.next()?;

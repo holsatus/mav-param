@@ -43,16 +43,19 @@ pub struct ValueIter<'a> {
 }
 
 impl<'a> ValueIter<'a> {
-    pub fn new(tree: &'a dyn Tree, name: &str) -> Self {
-        let mut path_buffer = crate::ident::Ident::new();
-        _ = path_buffer.push_entry(name);
+    pub fn new(tree: &'a dyn Tree, name: Option<&str>) -> Self {
+        let mut ident_buffer = crate::ident::Ident::new();
 
-        let mut stack = Vec::new();
+        if let Some(name) = name {
+            _ = ident_buffer.push_entry(name);
+        }
+
         // Push the tree root to begin traversal
+        let mut stack = Vec::new();
         let _ = stack.push(Segment { tree, index: 0 });
 
         Self {
-            ident_buffer: path_buffer,
+            ident_buffer,
             stack,
         }
     }
@@ -118,7 +121,7 @@ impl<'a> Iterator for ValueIter<'a> {
 #[cfg(test)]
 mod tests {
     use crate as param_rs;
-    use crate::{Tree, Value, param_iter};
+    use crate::{Tree, Value, param_iter_named};
     use super::IterError;
 
     #[test]
@@ -158,7 +161,7 @@ mod tests {
         };
         
         // Collect all parameters into a vector
-        let results: Vec<_> = param_iter(&params, "test")
+        let results: Vec<_> = param_iter_named(&params, "test")
             .filter_map(Result::ok)
             .collect();
         
@@ -237,7 +240,7 @@ mod tests {
         };
         
         // Try to iterate - should encounter DepthTooBig error
-        let mut iter = param_iter(&deep_tree, "d");
+        let mut iter = param_iter_named(&deep_tree, "d");
         let mut found_depth_error = false;
         
         // We should be able to traverse until we hit the max depth
