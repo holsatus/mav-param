@@ -1,47 +1,19 @@
-#[derive(Debug, Clone, Copy)]
-pub enum Value {
-    U8(u8),
-    I8(i8),
-    U16(u16),
-    I16(i16),
-    U32(u32),
-    I32(i32),
-    F32(f32),
+
+///  Primitives which can be represented as a "float" in a MavLink parameter
+pub trait Primitive {
+    fn from_bytewise(val: f32) -> Self;
+    fn into_bytewise(self) -> f32;
+    fn into_value(self) -> Value;
 }
 
-macro_rules! impl_into_value {
-    ($($var:ident($type:ty)),+ $(,)?) => {
-        $(
-            impl From<$type> for Value {
-                fn from(from: $type) -> Value {
-                    Value::$var(from)
-                }
-            }
-        )+
-    };
-}
-
-impl_into_value! {
-    U8(u8),
-    I8(i8),
-    U16(u16),
-    I16(i16),
-    U32(u32),
-    I32(i32),
-    F32(f32),
-}
-
-pub fn from_bytewise<F: Bytewise>(val: f32) -> F {
+/// Converts the float-encoded value into the correct primitive type.
+/// 
+/// It is up to the user to ensure the conversion is done correctly!
+pub fn from_bytewise<F: Primitive>(val: f32) -> F {
     F::from_bytewise(val)
 }
 
-///  Primitives which can be represented as a "float" in a MavLink parameter
-pub trait Bytewise {
-    fn from_bytewise(val: f32) -> Self;
-    fn into_bytewise(self) -> f32;
-}
-
-impl Bytewise for u8 {
+impl Primitive for u8 {
     fn from_bytewise(val: f32) -> u8 {
         let [_, _, _, b0] = val.to_le_bytes();
         u8::from_le_bytes([b0])
@@ -51,9 +23,13 @@ impl Bytewise for u8 {
         let [b0] = self.to_le_bytes();
         f32::from_le_bytes([0, 0, 0, b0])
     }
+    
+    fn into_value(self) -> Value {
+        Value::U8(self)
+    }
 }
 
-impl Bytewise for i8 {
+impl Primitive for i8 {
     fn from_bytewise(val: f32) -> i8 {
         let [_, _, _, b0] = val.to_le_bytes();
         i8::from_le_bytes([b0])
@@ -63,9 +39,13 @@ impl Bytewise for i8 {
         let [b0] = self.to_le_bytes();
         f32::from_le_bytes([0, 0, 0, b0])
     }
+
+    fn into_value(self) -> Value {
+        Value::I8(self)
+    }
 }
 
-impl Bytewise for u16 {
+impl Primitive for u16 {
     fn from_bytewise(val: f32) -> u16 {
         let [_, _, b1, b0] = val.to_le_bytes();
         u16::from_le_bytes([b1, b0])
@@ -74,10 +54,14 @@ impl Bytewise for u16 {
     fn into_bytewise(self) -> f32 {
         let [b1, b0] = self.to_le_bytes();
         f32::from_le_bytes([0, 0, b1, b0])
-}
+    }
+
+    fn into_value(self) -> Value {
+        Value::U16(self)
+    }
 }
 
-impl Bytewise for i16 {
+impl Primitive for i16 {
     fn from_bytewise(val: f32) -> i16 {
         let [_, _, b1, b0] = val.to_le_bytes();
         i16::from_le_bytes([b1, b0])
@@ -87,31 +71,41 @@ impl Bytewise for i16 {
         let [b1, b0] = self.to_le_bytes();
         f32::from_le_bytes([0, 0, b1, b0])
     }
+
+    fn into_value(self) -> Value {
+        Value::I16(self)
+    }
 }
 
-impl Bytewise for u32 {
+impl Primitive for u32 {
     fn from_bytewise(val: f32) -> u32 {
-        let bytes = val.to_le_bytes();
-        u32::from_le_bytes(bytes)
+        u32::from_le_bytes(val.to_le_bytes())
     }
     
     fn into_bytewise(self) -> f32 {
         f32::from_le_bytes(self.to_le_bytes())
     }
+
+    fn into_value(self) -> Value {
+        Value::U32(self)
+    }
 }
 
-impl Bytewise for i32 {
+impl Primitive for i32 {
     fn from_bytewise(val: f32) -> i32 {
-        let bytes = val.to_le_bytes();
-        i32::from_le_bytes(bytes)
+        i32::from_le_bytes(val.to_le_bytes())
     }
     
     fn into_bytewise(self) -> f32 {
         f32::from_le_bytes(self.to_le_bytes())
     }
+
+    fn into_value(self) -> Value {
+        Value::I32(self)
+    }
 }
 
-impl Bytewise for f32 {
+impl Primitive for f32 {
     fn from_bytewise(val: f32) -> f32 {
         val
     }
@@ -119,6 +113,21 @@ impl Bytewise for f32 {
     fn into_bytewise(self) -> f32 {
         self
     }
+
+    fn into_value(self) -> Value {
+        Value::F32(self)
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum Value {
+    U8(u8),
+    I8(i8),
+    U16(u16),
+    I16(i16),
+    U32(u32),
+    I32(i32),
+    F32(f32),
 }
 
 impl Value {
@@ -151,13 +160,13 @@ impl ValueMut<'_> {
     /// Obtain an owned version of this value.
     pub fn owned(&self) -> Value {
         match &self {
-            ValueMut::U8(x) => (**x).into(),
-            ValueMut::I8(x) => (**x).into(),
-            ValueMut::U16(x) => (**x).into(),
-            ValueMut::I16(x) => (**x).into(),
-            ValueMut::U32(x) => (**x).into(),
-            ValueMut::I32(x) => (**x).into(),
-            ValueMut::F32(x) => (**x).into(),
+            ValueMut::U8(x) => x.into_value(),
+            ValueMut::I8(x) => x.into_value(),
+            ValueMut::U16(x) => x.into_value(),
+            ValueMut::I16(x) => x.into_value(),
+            ValueMut::U32(x) => x.into_value(),
+            ValueMut::I32(x) => x.into_value(),
+            ValueMut::F32(x) => x.into_value(),
         }
     }
 

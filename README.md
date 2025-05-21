@@ -157,7 +157,7 @@ use param_rs::{Value, get_value};
 let in_message = mav::ParamRequestRead::decode(payload)?;
 
 // Convert into string slice and fetch the parameter
-let ident = str::from_utf8(&in_message.param_id)?;
+let ident = core::str::from_utf8(&in_message.param_id)?;
 let value = get_value(&params, ident)?;
 
 // Do bytewise conversion into float value
@@ -188,14 +188,14 @@ Getting a request to set a parameter is very similar. Here we just mutably look 
 use your_mavlink_library as mav;
 use param_rs::{
     ValueMut, get_value_mut,
-    value::Bytewise, // provides from_bytewise
+    value::from_bytewise
 };
 
-// We have received a parameter read request
+// We have received a parameter set request
 let in_message = mav::ParamSet::decode(payload)?;
 
 // Convert into string slice and fetch the parameter
-let ident = str::from_utf8(&in_message.param_id)?;
+let ident = core::str::from_utf8(&in_message.param_id)?;
 let value_mut = get_value_mut(&mut params, ident)?;
 
 // Get the float-value we need to convert
@@ -204,10 +204,10 @@ let float = in_message.param_value;
 // Modify the value only if the parameter types match
 use mav::ParamType as T;
 match (value_mut, in_message.param_type) {
-    (ValueMut::U8(v),  T::Uint8)  => *v = u8::from_bytewise(float),
-    (ValueMut::I8(v),  T::Int8)   => *v = i8::from_bytewise(float),
-    (ValueMut::U16(v), T::Uint16) => *v = u16::from_bytewise(float),
-    (ValueMut::I16(v), T::Int16)  => *v = i16::from_bytewise(float),
+    (ValueMut::U8(v),  T::Uint8)  => *v = from_bytewise::<u8>(float),
+    (ValueMut::I8(v),  T::Int8)   => *v = from_bytewise::<i8>(float),
+    (ValueMut::U16(v), T::Uint16) => *v = from_bytewise::<u16>(float),
+    (ValueMut::I16(v), T::Int16)  => *v = from_bytewise::<i16>(float),
     // .. and so on, with an error in case of mismatching types
     _ => return Err(Error::ParamTypeMismatch),
 };
