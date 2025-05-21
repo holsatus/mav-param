@@ -6,11 +6,13 @@ pub trait Primitive {
 }
 
 /// Converts the float-encoded value into the correct primitive type.
+#[cfg(target_endian = "little")]
 pub fn from_bytewise<F: Primitive>(val: f32) -> F {
     F::from_bytewise(val)
 }
 
 /// Converts the primite value into the float-encoded equivalent.
+#[cfg(target_endian = "little")]
 pub fn into_bytewise<F: Primitive>(val: F) -> f32 {
     F::into_bytewise(val)
 }
@@ -20,18 +22,33 @@ macro_rules! impl_primitive {
         $( $variant:ident($type:ident) ),+ $(,)?
     ) => {
 
+        #[derive(Debug, Clone, Copy)]
+        /// Represents the value of a parameter.
+        pub enum Value {
+            $( $variant($type), )+
+        }
+
+        /// Represents a mutable reference to some parameters value.
+        #[derive(Debug)]
+        pub enum ValueMut<'a> {
+            $( $variant(&'a mut $type), )+
+        }
+
         #[repr(C)]
+        #[cfg(target_endian = "little")]
         union Bytewise {
             $( $type: $type, )+
         }
 
         $( impl Primitive for $type {
             #[inline(always)]
+            #[cfg(target_endian = "little")]
             fn from_bytewise(val: f32) -> $type {
                 unsafe { Bytewise { f32: val }.$type }
             }
 
             #[inline(always)]
+            #[cfg(target_endian = "little")]
             fn into_bytewise(self) -> f32 {
                 unsafe { Bytewise { $type: self }.f32 }
             }
@@ -41,24 +58,14 @@ macro_rules! impl_primitive {
             }
         } )+
 
-        #[derive(Debug, Clone, Copy)]
-        /// Represents the value of a parameter.
-        pub enum Value {
-            $( $variant($type), )+
-        }
 
         impl Value {
+            #[cfg(target_endian = "little")]
             pub fn into_bytewise(&self) -> f32 {
                 match self {
                     $( Value::$variant(v) => v.into_bytewise(), )+
                 }
             }
-        }
-
-        /// Represents a mutable reference to some parameters value.
-        #[derive(Debug)]
-        pub enum ValueMut<'a> {
-            $( $variant(&'a mut $type), )+
         }
 
         impl ValueMut<'_> {
@@ -69,6 +76,7 @@ macro_rules! impl_primitive {
                 }
             }
 
+            #[cfg(target_endian = "little")]
             pub fn into_bytewise(&self) -> f32 {
                 self.owned().into_bytewise()
             }

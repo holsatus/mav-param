@@ -10,9 +10,6 @@ pub use value::Value;
 
 pub use param_rs_derive::{Node, Tree};
 
-#[cfg(target_endian = "big")]
-compile_error!("This implementation assumes little-endian architecture");
-
 #[derive(Debug, PartialEq)]
 pub enum Error {
     /// While iterating a tree, the resulting
