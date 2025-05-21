@@ -1,6 +1,6 @@
 use heapless::Vec;
 
-use crate::{Error, Tree, NodeRef};
+use crate::{Error, NodeRef, Tree};
 
 /// Maximum ident/path depth
 pub const MAX_IDENT_DEPTH: usize = 5;
