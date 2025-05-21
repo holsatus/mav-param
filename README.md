@@ -144,11 +144,14 @@ And iterating all key-value pair would give:
 "param.cfg.var.1" = F32(2.718)
 "param.cfg.var.2" = I16(0)
 ```
-## Working with a Mavlink library
+# Working with a Mavlink library
 
 For whatever reason, the value in the [PARAM_VALUE](https://mavlink.io/en/messages/common.html#PARAM_VALUE) field is encoded as a float. So when working with a Mavlink library, we need to do a byte-wise conversion of the primitive type into a float. For this we provide some helper functions to handle the byte-wise conversion itself, though some extra work is required to make it interact with the library.
 
-# Parameter lookup (e.g. [PARAM_REQUEST_READ](PARAM_REQUEST_READ))
+## Mavlink - Reading parameter
+
+Retrieving a parameter for Mavlink, through e.g. [PARAM_REQUEST_READ](PARAM_REQUEST_READ) involves taking the `param_id` from the incoming request, and using that (converted to a `&str`) to get the value. The value is converted into its bytewise representation, and the type of the parameter is included in the outgoing message.
+
 ```rust
 use your_mavlink_library as mav;
 use param_rs::{Value, get_value};
@@ -180,9 +183,9 @@ let out_message = mav::ParamValue {
 };
 ```
 
-# Parameter saving (e.g. [PARAM_SET](https://mavlink.io/en/messages/common.html#PARAM_SET))
+## Mavlink - Setting parameter
 
-Getting a request to set a parameter is very similar. Here we just mutably look up the parameter with `param_rs::get_value_mut` and use the `bytewise_from_float` function to convert from the float into the desired type. However, it is important to do a manual type-check, to ensure the new value's type matches the original.
+A Mavlink request to set a parameter, e.g. [PARAM_SET](https://mavlink.io/en/messages/common.html#PARAM_SET), is very similar. Here we just mutably look up the parameter with `param_rs::get_value_mut` and use the `bytewise_from_float` function to convert from the float into the desired type. However, it is important to do a manual type-check, to ensure the new value's type matches the original.
 
 ```rust
 use your_mavlink_library as mav;

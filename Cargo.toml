@@ -4,6 +4,5 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-bitflags = "2.9"
 heapless = "0.8"
 param-rs-derive = { path = "param-rs-derive" }
