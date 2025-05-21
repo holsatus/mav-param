@@ -1,4 +1,3 @@
-
 ///  Primitives which can be represented as a "float" in a MavLink parameter
 pub trait Primitive {
     fn from_bytewise(val: f32) -> Self;
@@ -7,7 +6,7 @@ pub trait Primitive {
 }
 
 /// Converts the float-encoded value into the correct primitive type.
-/// 
+///
 /// It is up to the user to ensure the conversion is done correctly!
 pub fn from_bytewise<F: Primitive>(val: f32) -> F {
     F::from_bytewise(val)
@@ -18,12 +17,12 @@ impl Primitive for u8 {
         let [_, _, _, b0] = val.to_le_bytes();
         u8::from_le_bytes([b0])
     }
-    
+
     fn into_bytewise(self) -> f32 {
         let [b0] = self.to_le_bytes();
         f32::from_le_bytes([0, 0, 0, b0])
     }
-    
+
     fn into_value(self) -> Value {
         Value::U8(self)
     }
@@ -34,7 +33,7 @@ impl Primitive for i8 {
         let [_, _, _, b0] = val.to_le_bytes();
         i8::from_le_bytes([b0])
     }
-    
+
     fn into_bytewise(self) -> f32 {
         let [b0] = self.to_le_bytes();
         f32::from_le_bytes([0, 0, 0, b0])
@@ -50,7 +49,7 @@ impl Primitive for u16 {
         let [_, _, b1, b0] = val.to_le_bytes();
         u16::from_le_bytes([b1, b0])
     }
-    
+
     fn into_bytewise(self) -> f32 {
         let [b1, b0] = self.to_le_bytes();
         f32::from_le_bytes([0, 0, b1, b0])
@@ -66,7 +65,7 @@ impl Primitive for i16 {
         let [_, _, b1, b0] = val.to_le_bytes();
         i16::from_le_bytes([b1, b0])
     }
-    
+
     fn into_bytewise(self) -> f32 {
         let [b1, b0] = self.to_le_bytes();
         f32::from_le_bytes([0, 0, b1, b0])
@@ -81,7 +80,7 @@ impl Primitive for u32 {
     fn from_bytewise(val: f32) -> u32 {
         u32::from_le_bytes(val.to_le_bytes())
     }
-    
+
     fn into_bytewise(self) -> f32 {
         f32::from_le_bytes(self.to_le_bytes())
     }
@@ -95,7 +94,7 @@ impl Primitive for i32 {
     fn from_bytewise(val: f32) -> i32 {
         i32::from_le_bytes(val.to_le_bytes())
     }
-    
+
     fn into_bytewise(self) -> f32 {
         f32::from_le_bytes(self.to_le_bytes())
     }
@@ -109,7 +108,7 @@ impl Primitive for f32 {
     fn from_bytewise(val: f32) -> f32 {
         val
     }
-    
+
     fn into_bytewise(self) -> f32 {
         self
     }

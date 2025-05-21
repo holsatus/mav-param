@@ -154,14 +154,14 @@ Retrieving a parameter for Mavlink, through e.g. [PARAM_REQUEST_READ](PARAM_REQU
 
 ```rust
 use your_mavlink_library as mav;
-use param_rs::{Value, get_value};
+use param_rs::{Ident, Value, get_value};
 
 // We have received a parameter read request
 let in_message = mav::ParamRequestRead::decode(payload)?;
 
-// Convert into string slice and fetch the parameter
-let ident = core::str::from_utf8(&in_message.param_id)?;
-let value = get_value(&params, ident)?;
+// Convert into a valid identifier and fetch the parameter
+let ident = Ident::try_from(&in_message.param_id)?;
+let value = get_value(&params, ident.as_str())?;
 
 // Do bytewise conversion into float value
 let param_value = value.into_bytewise();
@@ -185,32 +185,32 @@ let out_message = mav::ParamValue {
 
 ## Mavlink - Setting parameter
 
-A Mavlink request to set a parameter, e.g. [PARAM_SET](https://mavlink.io/en/messages/common.html#PARAM_SET), is very similar. Here we just mutably look up the parameter with `param_rs::get_value_mut` and use the `bytewise_from_float` function to convert from the float into the desired type. However, it is important to do a manual type-check, to ensure the new value's type matches the original.
+A Mavlink request to set a parameter, e.g. [PARAM_SET](https://mavlink.io/en/messages/common.html#PARAM_SET), is very similar. Here we instead mutably look up the parameter with `param_rs::get_value_mut` and use the `from_bytewise` function to convert from the float into the desired type. Here it is important to do a manual type-check, to ensure the new value's type matches the original.
 
 ```rust
 use your_mavlink_library as mav;
 use param_rs::{
-    ValueMut, get_value_mut,
+    Ident, ValueMut, get_value_mut,
     value::from_bytewise
 };
 
 // We have received a parameter set request
 let in_message = mav::ParamSet::decode(payload)?;
 
-// Convert into string slice and fetch the parameter
-let ident = core::str::from_utf8(&in_message.param_id)?;
-let value_mut = get_value_mut(&mut params, ident)?;
+// Convert into a valid identifier and fetch the parameter
+let ident = Ident::try_from(&in_message.param_id)?;
+let value_mut = get_value_mut(&mut params, ident.as_str())?;
 
 // Get the float-value we need to convert
-let float = in_message.param_value;
+let param_value = in_message.param_value;
 
 // Modify the value only if the parameter types match
 use mav::ParamType as T;
 match (value_mut, in_message.param_type) {
-    (ValueMut::U8(v),  T::Uint8)  => *v = from_bytewise::<u8>(float),
-    (ValueMut::I8(v),  T::Int8)   => *v = from_bytewise::<i8>(float),
-    (ValueMut::U16(v), T::Uint16) => *v = from_bytewise::<u16>(float),
-    (ValueMut::I16(v), T::Int16)  => *v = from_bytewise::<i16>(float),
+    (ValueMut::U8(v),  T::Uint8)  => *v = from_bytewise::<u8>(param_value),
+    (ValueMut::I8(v),  T::Int8)   => *v = from_bytewise::<i8>(param_value),
+    (ValueMut::U16(v), T::Uint16) => *v = from_bytewise::<u16>(param_value),
+    (ValueMut::I16(v), T::Int16)  => *v = from_bytewise::<i16>(param_value),
     // .. and so on, with an error in case of mismatching types
     _ => return Err(Error::ParamTypeMismatch),
 };
@@ -218,7 +218,7 @@ match (value_mut, in_message.param_type) {
 // We should now respond with our new value to confirm..
 ```
 
-## Implementation
+# Implementation
 
 This library relies on a deriving the `param_rs::Tree` on strucs, where each field/entry implements the `param_rs::Node` trait, which allows for converting the field into either a primitive type/value, or another `Tree`. Anything that that is a `Tree` or supported primitives automatically `Node`. This is what allows for using composition to combine structs, tuples, arrays and primitives into a data type that can be iterated to generate all stringy identifiers. 
 

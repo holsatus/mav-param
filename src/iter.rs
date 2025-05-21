@@ -1,31 +1,9 @@
 use heapless::Vec;
 
-use crate::{NodeRef, Tree, ident::Ident};
+use crate::{Error, Tree, NodeRef};
 
 /// Maximum ident/path depth
 pub const MAX_IDENT_DEPTH: usize = 5;
-
-pub enum IterError {
-    PathTooLong(Ident, &'static str),
-    DepthTooBig(Ident, &'static str),
-}
-
-impl core::fmt::Debug for IterError {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        match self {
-            Self::PathTooLong(arg0, arg1) => f
-                .debug_tuple("PathTooLong")
-                .field(&arg0.as_str())
-                .field(arg1)
-                .finish(),
-            Self::DepthTooBig(arg0, arg1) => f
-                .debug_tuple("DepthTooBig")
-                .field(&arg0.as_str())
-                .field(arg1)
-                .finish(),
-        }
-    }
-}
 
 /// The state of a single "level" of tree iteration
 struct Segment<'a> {
@@ -62,7 +40,7 @@ impl<'a> ValueIter<'a> {
 }
 
 impl<'a> Iterator for ValueIter<'a> {
-    type Item = Result<crate::Parameter, IterError>;
+    type Item = Result<crate::Parameter, Error>;
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
@@ -88,7 +66,7 @@ impl<'a> Iterator for ValueIter<'a> {
 
             // Add this segment to the path (temporarily)
             if !self.ident_buffer.push_entry(entry_name) {
-                return Some(Err(IterError::PathTooLong(
+                return Some(Err(Error::PathTooLong(
                     self.ident_buffer.clone(),
                     entry_name,
                 )));
@@ -107,7 +85,7 @@ impl<'a> Iterator for ValueIter<'a> {
                 NodeRef::Tree(tree) => {
                     // Push this node for traversal
                     if self.stack.push(Segment { tree, index: 0 }).is_err() {
-                        return Some(Err(IterError::DepthTooBig(
+                        return Some(Err(Error::DepthTooBig(
                             self.ident_buffer.clone(),
                             entry_name,
                         )));
@@ -121,12 +99,11 @@ impl<'a> Iterator for ValueIter<'a> {
 #[cfg(test)]
 mod tests {
     use crate as param_rs;
-    use crate::{Tree, Value, param_iter_named};
-    use super::IterError;
+    use param_rs::Error;
+    use param_rs::{Tree, Value, param_iter_named};
 
     #[test]
     fn basic_iteration() {
-
         #[derive(Tree)]
         struct TestParams {
             #[tree(rename = "sub")]
@@ -159,15 +136,15 @@ mod tests {
             value2: -100,
             float_val: 2.718,
         };
-        
+
         // Collect all parameters into a vector
         let results: Vec<_> = param_iter_named(&params, "test")
             .filter_map(Result::ok)
             .collect();
-        
+
         // Check we got the expected number of parameters (test.sub.deep.val should fail)
         assert_eq!(results.len(), 5, "Should iterate over 5 leaf values");
-        
+
         // Check specific parameters
         let expected_params = vec![
             ("test.sub.leaf1", Value::U32(42)),
@@ -176,10 +153,10 @@ mod tests {
             ("test.value2", Value::I16(-100)),
             ("test.float_val", Value::F32(2.718)),
         ];
-        
+
         for (param, (expected_path, expected_value)) in results.iter().zip(expected_params.iter()) {
             assert_eq!(param.ident.as_str(), *expected_path);
-            
+
             match (&param.value, expected_value) {
                 (Value::U8(a), Value::U8(b)) => assert_eq!(a, b),
                 (Value::I8(a), Value::I8(b)) => assert_eq!(a, b),
@@ -195,7 +172,6 @@ mod tests {
 
     #[test]
     fn max_depth_error() {
-
         #[derive(Tree)]
         struct MaxDepthTree {
             l1: MaxDepthL1,
@@ -232,25 +208,25 @@ mod tests {
                 l2: MaxDepthL2 {
                     l3: MaxDepthL3 {
                         l4: MaxDepthL4 {
-                            l5: MaxDepthL5 { l6: 42 }
-                        }
-                    }
-                }
-            }
+                            l5: MaxDepthL5 { l6: 42 },
+                        },
+                    },
+                },
+            },
         };
-        
+
         // Try to iterate - should encounter DepthTooBig error
         let mut iter = param_iter_named(&deep_tree, "d");
         let mut found_depth_error = false;
-        
+
         // We should be able to traverse until we hit the max depth
         while let Some(result) = iter.next() {
-            if let Err(IterError::DepthTooBig(_, _)) = result {
+            if let Err(Error::DepthTooBig(_, _)) = result {
                 found_depth_error = true;
                 break;
             }
         }
-        
+
         assert!(found_depth_error, "Should encounter a DepthTooBig error");
     }
 }

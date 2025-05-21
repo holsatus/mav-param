@@ -5,12 +5,54 @@ const MAX_NAMED_LEN: usize = 16;
 ///
 /// This is designed to be fully compatible with the MavLink
 /// parameter protocol, by being a 16-byte null-terminated String
+///
 /// To get a utf8 string slice (`&str`), use [`Ident::as_str`]
 /// and for the null-terminated 16-byte buffer, use [`Ident::as_raw`].
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq)]
 pub struct Ident {
     buf: [u8; MAX_NAMED_LEN],
     len: usize,
+}
+
+impl core::fmt::Debug for Ident {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("Ident")
+            .field("buf (&str)", &self.as_str())
+            .field("buf", &self.as_str())
+            .field("len", &self.len)
+            .finish()
+    }
+}
+
+impl TryFrom<&[u8]> for Ident {
+    type Error = crate::Error;
+
+    fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
+        // Find the null-byte
+        let bytes = match value.iter().position(|b| *b == b'\0') {
+            Some(pos) if pos <= MAX_NAMED_LEN => pos,
+            _ if value.len() <= MAX_NAMED_LEN => value.len(),
+            _ => return Err(crate::Error::SequenceTooLong),
+        };
+
+        // Ensure the bytes are valid utf8
+        let Ok(string) = core::str::from_utf8(&value[..bytes]) else {
+            return Err(crate::Error::SequenceNotUtf8);
+        };
+
+        let mut ident = Ident::new();
+        ident.buf[..bytes].copy_from_slice(string.as_bytes());
+        ident.len = bytes;
+        Ok(ident)
+    }
+}
+
+impl<const N: usize> TryFrom<&[u8; N]> for Ident {
+    type Error = crate::Error;
+
+    fn try_from(value: &[u8; N]) -> Result<Self, Self::Error> {
+        Self::try_from(value.as_slice())
+    }
 }
 
 impl Ident {
@@ -23,6 +65,8 @@ impl Ident {
 
     /// Expose the inner string slice
     pub fn as_str(&self) -> &str {
+        // It is fine to unwrap since we always
+        // only push valid utf8 to the buffer
         core::str::from_utf8(&self.buf[..self.len]).expect("Invalid utf8")
     }
 
@@ -63,6 +107,33 @@ impl Ident {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn try_from() {
+        // Basic back and forth conversion
+        let ident = super::Ident::try_from(b"hello.world").unwrap();
+        assert_eq!("hello.world", ident.as_str());
+
+        // find null-byte
+        let ident = super::Ident::try_from(b"hello.world\0....").unwrap();
+        assert_eq!("hello.world", ident.as_str());
+
+        // find null-byte (with trailing invalid utf8)
+        let ident = super::Ident::try_from(b"hello.world\0\xE0\xA0").unwrap();
+        assert_eq!("hello.world", ident.as_str());
+
+        // Reject invalid utf8
+        assert_eq!(
+            super::Ident::try_from(b"hello.world\xE0\xA0"),
+            Err(crate::Error::SequenceNotUtf8)
+        );
+
+        // Reject too long strings
+        assert_eq!(
+            super::Ident::try_from(b"hello.world.foo.bar"),
+            Err(crate::Error::SequenceTooLong)
+        );
+    }
+
     #[test]
     fn push_pop_single() {
         let mut ident = super::Ident::new();
