@@ -32,7 +32,7 @@ bitflags::bitflags! {
 
 Into a flat list of key-value pairs, with optional field renaming:
 
-```json
+```toml
 "mav.timeout_ms" = U16(5000)
 "mav.id.sys" = U8(1)
 "mav.id.com" = U8(1)
