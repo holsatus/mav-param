@@ -26,7 +26,7 @@ macro_rules! impl_primitive {
         $( $variant:ident($type:ident) ),+ $(,)?
     ) => {
 
-        #[derive(Debug, Clone, Copy)]
+        #[derive(Debug, Clone, Copy, PartialEq)]
         /// Represents the value of a parameter.
         pub enum Value {
             $( $variant($type), )+
@@ -68,6 +68,12 @@ macro_rules! impl_primitive {
 
 
         impl Value {
+            pub fn as_mut(&mut self) -> ValueMut<'_> {
+                match self {
+                    $( Value::$variant(v) => ValueMut::$variant(v), )+
+                }
+            }
+
             #[cfg(target_endian = "little")]
             pub fn into_bytewise(&self) -> f32 {
                 match self {
