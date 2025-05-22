@@ -1,6 +1,6 @@
 use heapless::Vec;
 
-use crate::{Error, NodeRef, Tree};
+use crate::{Error, NodeRef, Parameter, Tree};
 
 /// Maximum ident/path depth
 pub const MAX_IDENT_DEPTH: usize = 5;
@@ -13,14 +13,14 @@ struct Segment<'a> {
     index: usize,
 }
 
-pub struct ValueIter<'a> {
+pub struct ParamIter<'a> {
     // Single path buffer that's modified during traversal
     ident_buffer: crate::ident::Ident,
     // Stack stores only minimal data for traversal state
     stack: Vec<Segment<'a>, MAX_IDENT_DEPTH>,
 }
 
-impl<'a> ValueIter<'a> {
+impl<'a> ParamIter<'a> {
     pub fn new(tree: &'a dyn Tree, name: Option<&str>) -> Self {
         let mut ident_buffer = crate::ident::Ident::new();
 
@@ -39,8 +39,8 @@ impl<'a> ValueIter<'a> {
     }
 }
 
-impl<'a> Iterator for ValueIter<'a> {
-    type Item = Result<crate::Parameter, Error>;
+impl Iterator for ParamIter<'_> {
+    type Item = Result<Parameter, Error>;
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
@@ -80,7 +80,7 @@ impl<'a> Iterator for ValueIter<'a> {
                     // Remove the temporary segment from our buffer
                     self.ident_buffer.pop_entry();
 
-                    return Some(Ok(crate::Parameter { ident, value }));
+                    return Some(Ok(Parameter { ident, value }));
                 }
                 NodeRef::Tree(tree) => {
                     // Push this node for traversal
@@ -89,7 +89,7 @@ impl<'a> Iterator for ValueIter<'a> {
                             self.ident_buffer.clone(),
                             entry_name,
                         )));
-                    };
+                    }
                 }
             }
         }
@@ -98,9 +98,9 @@ impl<'a> Iterator for ValueIter<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate as param_rs;
-    use param_rs::Error;
-    use param_rs::{Tree, Value, param_iter_named};
+    use crate as mav_param;
+    use mav_param::Error;
+    use mav_param::{Tree, Value, param_iter_named};
 
     #[test]
     fn basic_iteration() {

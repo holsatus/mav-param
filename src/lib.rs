@@ -1,4 +1,5 @@
 #![cfg_attr(not(test), no_std)]
+#![warn(clippy::pedantic)]
 
 pub mod ident;
 pub mod iter;
@@ -8,7 +9,7 @@ pub mod value;
 pub use ident::Ident;
 pub use value::Value;
 
-pub use param_rs_derive::{Node, Tree};
+pub use mav_param_derive::{Node, Tree};
 
 #[derive(Debug, PartialEq)]
 pub enum Error {
@@ -42,17 +43,23 @@ pub trait Tree {
 }
 
 /// Iterate all values of this tree with a "root" name defined
-pub fn param_iter_named<'a>(tree: &'a dyn Tree, name: &str) -> iter::ValueIter<'a> {
-    iter::ValueIter::new(tree, Some(name))
+///
+/// Note: This iterator yields `Result`, since some parameter identifiers
+/// may turn out to be longer than 16 bytes, or if structs are nested too deeply.
+pub fn param_iter_named<'a>(tree: &'a dyn Tree, name: &str) -> iter::ParamIter<'a> {
+    iter::ParamIter::new(tree, Some(name))
 }
 
 /// Iterate all values of this tree
-pub fn param_iter<'a>(tree: &'a dyn Tree) -> iter::ValueIter<'a> {
-    iter::ValueIter::new(tree, None)
+///
+/// Note: This iterator yields `Result`, since some parameter identifiers
+/// may turn out to be longer than 16 bytes, or if structs are nested too deeply.
+pub fn param_iter(tree: &dyn Tree) -> iter::ParamIter<'_> {
+    iter::ParamIter::new(tree, None)
 }
 
 /// Returns the value for the given identifier
-pub fn get_value<'a>(mut tree: &'a dyn Tree, ident: &str) -> Option<value::Value> {
+pub fn get_value(mut tree: &dyn Tree, ident: &str) -> Option<value::Value> {
     let mut segments = ident.trim_start_matches('.').split('.');
     loop {
         let next = segments.next()?;

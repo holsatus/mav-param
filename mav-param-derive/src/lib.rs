@@ -1,7 +1,7 @@
 use proc_macro::TokenStream;
 use quote::quote;
 use syn::{
-    parse_macro_input, Attribute, Data, DeriveInput, Fields, FieldsNamed, Ident, Lit, MetaNameValue,
+    Attribute, Data, DeriveInput, Fields, FieldsNamed, Ident, Lit, MetaNameValue, parse_macro_input,
 };
 
 #[proc_macro_derive(Tree, attributes(tree))]
@@ -68,17 +68,17 @@ fn generate_named_fields_impl(
     });
 
     quote! {
-        impl param_rs::Tree for #name {
-            fn get_ref<'a>(&'a self, node: &str) -> Option<param_rs::NodeRef<'a>> {
-                use param_rs::Node;
+        impl mav_param::Tree for #name {
+            fn get_ref<'a>(&'a self, node: &str) -> Option<mav_param::NodeRef<'a>> {
+                use mav_param::Node;
                 match node {
                     #(#get_ref_arms)*
                     _ => None,
                 }
             }
 
-            fn get_mut<'a>(&'a mut self, node: &str) -> Option<param_rs::NodeMut<'a>> {
-                use param_rs::Node;
+            fn get_mut<'a>(&'a mut self, node: &str) -> Option<mav_param::NodeMut<'a>> {
+                use mav_param::Node;
                 match node {
                     #(#get_mut_arms)*
                     _ => None,
@@ -96,29 +96,30 @@ fn generate_named_fields_impl(
 pub fn transparent(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
     let name = &input.ident;
-    
+
     // Verify it's a newtype struct
     match &input.data {
         Data::Struct(data) => match &data.fields {
             Fields::Unnamed(fields) if fields.unnamed.len() == 1 => {
                 // Valid newtype struct
-            },
-            _ => panic!("Transparent derive only works on newtype structs with a single field")
+            }
+            _ => panic!("Transparent derive only works on newtype structs with a single field"),
         },
-        _ => panic!("Transparent derive only works on structs")
+        _ => panic!("Transparent derive only works on structs"),
     };
-    
+
     quote! {
-        impl param_rs::Node for #name {
-            fn node_ref(&self) -> param_rs::NodeRef<'_> {
+        impl mav_param::Node for #name {
+            fn node_ref(&self) -> mav_param::NodeRef<'_> {
                 self.0.node_ref()
             }
-            
-            fn node_mut(&mut self) -> param_rs::NodeMut<'_> {
+
+            fn node_mut(&mut self) -> mav_param::NodeMut<'_> {
                 self.0.node_mut()
             }
         }
-    }.into()
+    }
+    .into()
 }
 
 // Updated function to extract rename attribute using syn 2.0 API

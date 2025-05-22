@@ -17,8 +17,8 @@ pub struct Ident {
 impl core::fmt::Debug for Ident {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("Ident")
-            .field("buf (&str)", &self.as_str())
-            .field("buf", &self.as_str())
+            .field("buf.as_str()", &self.as_str())
+            .field("buf", &self.buf)
             .field("len", &self.len)
             .finish()
     }
@@ -35,7 +35,7 @@ impl TryFrom<&[u8]> for Ident {
             _ => return Err(crate::Error::SequenceTooLong),
         };
 
-        // Ensure the bytes are valid utf8
+        // This is safety-critical as it ensures the buffer contains valid utf8.
         let Ok(string) = core::str::from_utf8(&value[..bytes]) else {
             return Err(crate::Error::SequenceNotUtf8);
         };
@@ -55,7 +55,14 @@ impl<const N: usize> TryFrom<&[u8; N]> for Ident {
     }
 }
 
+impl Default for Ident {
+    fn default() -> Self {
+        Ident::new()
+    }
+}
+
 impl Ident {
+    #[must_use]
     pub fn new() -> Self {
         Ident {
             buf: [b'\0'; MAX_NAMED_LEN],
@@ -67,7 +74,12 @@ impl Ident {
     pub fn as_str(&self) -> &str {
         // It is fine to unwrap since we always
         // only push valid utf8 to the buffer
-        core::str::from_utf8(&self.buf[..self.len]).expect("Invalid utf8")
+        let result = core::str::from_utf8(&self.buf[..self.len]);
+        debug_assert!(result.is_ok());
+
+        // SAFETY: In all places we add data to the buffer,
+        // it is either &str or validated utf8.
+        unsafe { result.unwrap_unchecked() }
     }
 
     /// Expose the inner null-terminated string. Compatible with MavLink parameter names
@@ -82,7 +94,7 @@ impl Ident {
             self.buf[..entry.len()].copy_from_slice(entry.as_bytes());
             self.len = entry.len();
             true
-        } else if self.len + entry.len() + 1 <= MAX_NAMED_LEN {
+        } else if self.len + entry.len() < MAX_NAMED_LEN {
             self.buf[self.len] = b'.';
             self.len += 1;
             self.buf[self.len..(self.len + entry.len())].copy_from_slice(entry.as_bytes());
@@ -100,7 +112,7 @@ impl Ident {
             (self.len - pos - 1..self.len).for_each(|idx| self.buf[idx] = b'\0');
             self.len -= pos + 1;
         } else {
-            *self = Ident::new()
+            *self = Ident::new();
         }
     }
 }

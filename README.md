@@ -41,13 +41,13 @@ Into a flat list of key-value pairs, with optional field renaming:
 
 ## Usage
 
-Structs with named fields are marked with the `param_rs::Tree` derive macro. This ensures we have a way to enumerate all fields by their string identifier, and retrieve the "node" (value or another struct) for a given identifier. Unit structs can be made transparent with the `param_rs::Node` derive macro.
+Structs with named fields are marked with the `mav_param::Tree` derive macro. This ensures we have a way to enumerate all fields by their string identifier, and retrieve the "node" (value or another struct) for a given identifier. Unit structs can be made transparent with the `mav_param::Node` derive macro.
 
 For example an implementation of the Mavlink server may have the parameter tree:
 
 ```rust
 // A nested struct of parameters
-#[derive(param_rs::Tree)]
+#[derive(mav_param::Tree)]
 struct MavlinkParams {
     timeout_ms: u16,
     id: MavlinkId,
@@ -56,7 +56,7 @@ struct MavlinkParams {
 
 // Another nested tree of parameters
 // with some renamed entries.
-#[derive(param_rs::Tree)]
+#[derive(mav_param::Tree)]
 struct MavlinkId {
     #[tree(rename = "sys")]
     system_id: u8,
@@ -64,9 +64,9 @@ struct MavlinkId {
     component_id: u8,
 }
 
-// A "transparent" unit struct, makes 
+// A "transparent" unit struct, makes
 // working with the bitflags crate easy!
-#[derive(param_rs::Node)]
+#[derive(mav_param::Node)]
 struct Flags(u8);
 
 bitflags::bitflags! {
@@ -80,16 +80,8 @@ We can now iteratively traverse the tree, to list out all parameters, ensuring "
 
 ```rust
 // Print out all parameter identifiers, adding the "mav" prefix
-for result in param_rs::param_iter_named(&mav, "mav") {
-    match result {
-        Ok(param_rs::Parameter { ident, value }) => {
-            println!("{:?} = {:?}", ident.as_str(), value);
-        }
-        // Note: The iteration can fail if the identifier cannot fit
-        // in 16 bytes, or if the "path depth" is greater than 5.
-        // Consider renaming or reducing the depth if this is the case.
-        Err(error) => println!("Iteration error: {:?}", error)
-    }
+for param in mav_param::param_iter_named(&mav, "mav").filter_map(|entry| entry.ok()) {
+    println!("{:?} = {:?}", param.ident.as_str(), param.value);
 }
 ```
 
@@ -99,8 +91,8 @@ Alternatively we can index into the struct using a string, to modify a parameter
 
 ```rust
 // Mutable get the mav system id by string-lookup
-match param_rs::get_value_mut(&mut mav, ".id.sys") {
-    Some(param_rs::ValueMut::U8(sys_id)) => *sys_id = 100
+match mav_param::get_value_mut(&mut mav, ".id.sys") {
+    Some(mav_param::ValueMut::U8(sys_id)) => *sys_id = 100
     _ => println!("warn: No such parameter"),
 }
 ```
@@ -108,12 +100,12 @@ match param_rs::get_value_mut(&mut mav, ".id.sys") {
 We may notice that the syntax for the stringified key and the Rust code to access the same value is very similar, which is intentional. This even extends to tuples and arrays up to length 10 (though arrays also use the `arr.0` indexing syntax):
 
 ```rust
-#[derive(param_rs::Tree, Default)]
+#[derive(mav_param::Tree, Default)]
 struct Parameters {
     cfg: Config,
 }
 
-#[derive(param_rs::Tree, Default)]
+#[derive(mav_param::Tree, Default)]
 struct Config {
     var: (u8, f32, i16),
     arr: [f32; 8],
@@ -125,14 +117,14 @@ let mut param = Parameters::default()
 param.cfg.var.0 = 255;
 
 // Stringy syntax
-match param_rs::get_leaf_mut(&mut param, ".cfg.var.1") {
-    Some(param_rs::ValueMut::F32(var_0)) => *var_0 = 2.718,
+match mav_param::get_leaf_mut(&mut param, ".cfg.var.1") {
+    Some(mav_param::ValueMut::F32(var_0)) => *var_0 = 2.718,
     _ => println!("warn: No such parameter"),
 }
 
 // Stringy syntax
-match param_rs::get_leaf_mut(&mut param, ".cfg.arr.7") {
-    Some(param_rs::ValueMut::F32(arr_7)) => *arr_7 = 3.1415,
+match mav_param::get_leaf_mut(&mut param, ".cfg.arr.7") {
+    Some(mav_param::ValueMut::F32(arr_7)) => *arr_7 = 3.1415,
     _ => println!("warn: No such parameter"),
 }
 ```
@@ -154,7 +146,7 @@ Retrieving a parameter for Mavlink, through e.g. [PARAM_REQUEST_READ](PARAM_REQU
 
 ```rust
 use your_mavlink_library as mav;
-use param_rs::{Ident, Value, get_value};
+use mav_param::{Ident, Value, get_value};
 
 // We have received a parameter read request
 let in_message = mav::ParamRequestRead::decode(payload)?;
@@ -185,11 +177,11 @@ let out_message = mav::ParamValue {
 
 ## Mavlink - Setting parameter
 
-A Mavlink request to set a parameter, e.g. [PARAM_SET](https://mavlink.io/en/messages/common.html#PARAM_SET), is very similar. Here we instead mutably look up the parameter with `param_rs::get_value_mut` and use the `from_bytewise` function to convert from the float into the desired type. Here it is important to do a manual type-check, to ensure the new value's type matches the original.
+A Mavlink request to set a parameter, e.g. [PARAM_SET](https://mavlink.io/en/messages/common.html#PARAM_SET), is very similar. Here we instead mutably look up the parameter with `mav_param::get_value_mut` and use the `from_bytewise` function to convert from the float into the desired type. Here it is important to do a manual type-check, to ensure the new value's type matches the original.
 
 ```rust
 use your_mavlink_library as mav;
-use param_rs::{
+use mav_param::{
     Ident, ValueMut, get_value_mut,
     value::from_bytewise
 };
@@ -220,7 +212,7 @@ match (value_mut, in_message.param_type) {
 
 # Implementation
 
-This library relies on a deriving the `param_rs::Tree` on strucs, where each field/entry implements the `param_rs::Node` trait, which allows for converting the field into either a primitive type/value, or another `Tree`. Anything that that is a `Tree` or supported primitives automatically `Node`. This is what allows for using composition to combine structs, tuples, arrays and primitives into a data type that can be iterated to generate all stringy identifiers. 
+This library relies on a deriving the `mav_param::Tree` on strucs, where each field/entry implements the `mav_param::Node` trait, which allows for converting the field into either a primitive type/value, or another `Tree`. Anything that that is a `Tree` or supported primitives automatically `Node`. This is what allows for using composition to combine structs, tuples, arrays and primitives into a data type that can be iterated to generate all stringy identifiers.
 
 ## Limitations
 
@@ -248,14 +240,14 @@ struct OptionalStruct {
 }
 
 // .. may be represented as follows:
-#[derive(param_rs::Tree)]
+#[derive(mav_param::Tree)]
 struct OptionalParams {
     opt: Optional,
     value1: i32,
     value2: (f32, f32),
 }
 
-#[derive(param_rs::Node)]
+#[derive(mav_param::Node)]
 struct Optional(u8);
 
 bitflags::bitflags! {
