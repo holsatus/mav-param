@@ -1,4 +1,8 @@
-///  Primitives which can be represented as a "float" in a MavLink parameter
+///  Primitives which can be represented as a "float" in a Mavlink parameter
+///
+/// This trait enables conversion between MAVLink parameter values (which are transmitted
+/// as IEEE 754 floats) and their actual primitive types through bytewise reinterpretation
+/// rather than numeric conversion.
 pub trait Primitive {
     fn from_bytewise(val: f32) -> Self;
     fn into_bytewise(self) -> f32;
@@ -36,6 +40,10 @@ macro_rules! impl_primitive {
 
         #[repr(C)]
         #[cfg(target_endian = "little")]
+        // An unsafe type that allows for byte-wise conversion between the inner types.
+        //
+        // This matches the Mavlink C API, and is why we do the same here. It is however
+        // only safe to use on little-endian systems. PRs for big-endian support are welcome.
         union Bytewise {
             $( $type: $type, )+
         }

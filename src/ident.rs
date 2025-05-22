@@ -62,6 +62,9 @@ impl Default for Ident {
 }
 
 impl Ident {
+    /// Creates a new empty identifier.
+    ///
+    /// The identifier is initialized with null bytes and zero length.
     #[must_use]
     pub fn new() -> Self {
         Ident {

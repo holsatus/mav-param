@@ -4,6 +4,13 @@ use syn::{
     parse_macro_input, Attribute, Data, DeriveInput, Fields, FieldsNamed, Ident, Lit, MetaNameValue,
 };
 
+/// Derives the `Tree` trait for a struct.
+///
+/// This macro automatically implements the `Tree` trait for a struct, allowing it
+/// to be part of a parameter hierarchy. Each field of the struct becomes an entry
+/// in the parameter tree.
+///
+/// Use the `#[tree(rename = "name")]` attribute to customize field names in the tree.
 #[proc_macro_derive(Tree, attributes(tree))]
 pub fn tree_derive(input: TokenStream) -> TokenStream {
     // Parse the input tokens into a syntax tree
@@ -114,6 +121,16 @@ fn find_rename_attr(attrs: &[Attribute]) -> Option<String> {
     None
 }
 
+/// Derives the `Node` trait for a newtype struct.
+///
+/// This macro generates an implementation that delegates to the inner type's `Node`
+/// implementation. It only works on newtype structs (structs with a single unnamed field).
+///
+/// Example:
+/// ```
+/// #[derive(Node)]
+/// struct MyWrapper(u8);
+/// ```
 #[proc_macro_derive(Node)]
 pub fn node_derive(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);

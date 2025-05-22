@@ -13,6 +13,11 @@ struct Segment<'a> {
     index: usize,
 }
 
+/// An iterator that traverses a parameter tree and yields each leaf parameter.
+///
+/// This iterator performs a depth-first traversal of the parameter tree, building
+/// parameter identifiers using dot notation (e.g., "sys.sub.param").
+/// It handles errors related to path length and tree depth limitations.
 pub struct ParamIter<'a> {
     // Single path buffer that's modified during traversal
     ident_buffer: crate::ident::Ident,
@@ -21,6 +26,9 @@ pub struct ParamIter<'a> {
 }
 
 impl<'a> ParamIter<'a> {
+    /// Creates a new parameter iterator starting at the given tree.
+    ///
+    /// Note: A tree is never aware of its parents, so they are not included in the path.
     pub fn new(tree: &'a dyn Tree, name: Option<&str>) -> Self {
         let mut ident_buffer = crate::ident::Ident::new();
 
