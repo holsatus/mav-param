@@ -4,6 +4,5 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-bitflags = "2.9.1"
 heapless = "0.8"
 mav-param-derive = { path = "mav-param-derive" }
