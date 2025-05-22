@@ -1,7 +1,7 @@
 use proc_macro::TokenStream;
 use quote::quote;
 use syn::{
-    Attribute, Data, DeriveInput, Fields, FieldsNamed, Ident, Lit, MetaNameValue, parse_macro_input,
+    parse_macro_input, Attribute, Data, DeriveInput, Fields, FieldsNamed, Ident, Lit, MetaNameValue,
 };
 
 #[proc_macro_derive(Tree, attributes(tree))]
@@ -16,9 +16,7 @@ pub fn tree_derive(input: TokenStream) -> TokenStream {
             // Handle normal structs with named fields
             Fields::Named(fields_named) => generate_named_fields_impl(name, fields_named),
 
-            _ => panic!(
-                "Tree derive only supports structs with named fields or unit structs with a single field"
-            ),
+            _ => panic!("Tree derive only supports structs with named fields"),
         },
         _ => panic!("Tree derive only supports structs"),
     };
@@ -48,21 +46,21 @@ fn generate_named_fields_impl(
         })
         .collect::<Vec<_>>();
 
-    // Generate match arms for get_ref using the renamed fields
+    // Generate match arms for get_ref
     let get_ref_arms = field_info.iter().map(|(field_name, param_name)| {
         quote! {
             #param_name => Some(self.#field_name.node_ref()),
         }
     });
 
-    // Generate match arms for get_mut using the renamed fields
+    // Generate match arms for get_mut
     let get_mut_arms = field_info.iter().map(|(field_name, param_name)| {
         quote! {
             #param_name => Some(self.#field_name.node_mut()),
         }
     });
 
-    // Generate entries list with renamed fields
+    // Generate entries list
     let entry_strings = field_info.iter().map(|(_, param_name)| {
         quote! { #param_name }
     });
@@ -92,36 +90,6 @@ fn generate_named_fields_impl(
     }
 }
 
-#[proc_macro_derive(Node)]
-pub fn transparent(input: TokenStream) -> TokenStream {
-    let input = parse_macro_input!(input as DeriveInput);
-    let name = &input.ident;
-
-    // Verify it's a newtype struct
-    match &input.data {
-        Data::Struct(data) => match &data.fields {
-            Fields::Unnamed(fields) if fields.unnamed.len() == 1 => {
-                // Valid newtype struct
-            }
-            _ => panic!("Transparent derive only works on newtype structs with a single field"),
-        },
-        _ => panic!("Transparent derive only works on structs"),
-    };
-
-    quote! {
-        impl mav_param::Node for #name {
-            fn node_ref(&self) -> mav_param::NodeRef<'_> {
-                self.0.node_ref()
-            }
-
-            fn node_mut(&mut self) -> mav_param::NodeMut<'_> {
-                self.0.node_mut()
-            }
-        }
-    }
-    .into()
-}
-
 // Updated function to extract rename attribute using syn 2.0 API
 fn find_rename_attr(attrs: &[Attribute]) -> Option<String> {
     for attr in attrs {
@@ -144,4 +112,35 @@ fn find_rename_attr(attrs: &[Attribute]) -> Option<String> {
         }
     }
     None
+}
+
+#[proc_macro_derive(Node)]
+pub fn node_derive(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as DeriveInput);
+    let name = &input.ident;
+
+    // Verify it's a newtype struct
+    match &input.data {
+        Data::Struct(data) => match &data.fields {
+            Fields::Unnamed(fields) if fields.unnamed.len() == 1 => {
+                // Valid newtype struct
+            }
+            _ => panic!("Node derive only works on newtype structs with a single field"),
+        },
+        _ => panic!("Node derive only works on structs"),
+    };
+
+    // Delegate to the Node trait implementation of the inner type
+    quote! {
+        impl mav_param::Node for #name {
+            fn node_ref(&self) -> mav_param::NodeRef<'_> {
+                self.0.node_ref()
+            }
+
+            fn node_mut(&mut self) -> mav_param::NodeMut<'_> {
+                self.0.node_mut()
+            }
+        }
+    }
+    .into()
 }
