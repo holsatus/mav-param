@@ -7,7 +7,7 @@ pub mod tree_impls;
 pub mod value;
 
 pub use ident::Ident;
-pub use value::Value;
+pub use value::{Value, ValueMut};
 
 pub use mav_param_derive::{Node, Tree};
 
@@ -31,7 +31,7 @@ pub struct Parameter {
     pub value: value::Value,
 }
 
-pub trait Tree {
+pub trait Tree: Send + Sync {
     /// Retrieve a reference to the node at a given path.
     fn get_ref<'a>(&'a self, node: &str) -> Option<NodeRef<'a>>;
 
@@ -96,7 +96,7 @@ pub enum NodeMut<'a> {
 
 /// A [`Node`] represents some named entry in a [`Param`], which may
 /// be another [`Param`], or a [`value::Value`] (or [`value::ValueMut`]).
-pub trait Node {
+pub trait Node: Send + Sync {
     fn node_ref(&self) -> NodeRef<'_>;
     fn node_mut(&mut self) -> NodeMut<'_>;
 }
