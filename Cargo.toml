@@ -3,6 +3,10 @@ name = "mav-param"
 version = "0.1.0"
 edition = "2024"
 
+[features]
+serde = ["dep:serde"]
+
 [dependencies]
 heapless = "0.8"
 mav-param-derive = { path = "mav-param-derive" }
+serde = { version = "1.0", features = ["derive"], optional = true }

@@ -9,6 +9,7 @@ const MAX_NAMED_LEN: usize = 16;
 /// To get a utf8 string slice (`&str`), use [`Ident::as_str`]
 /// and for the null-terminated 16-byte buffer, use [`Ident::as_raw`].
 #[derive(Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Ident {
     buf: [u8; MAX_NAMED_LEN],
     len: usize,

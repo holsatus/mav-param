@@ -27,6 +27,7 @@ macro_rules! impl_primitive {
     ) => {
 
         #[derive(Debug, Clone, Copy, PartialEq)]
+        #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
         /// Represents the value of a parameter.
         pub enum Value {
             $( $variant($type), )+
