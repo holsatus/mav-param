@@ -8,7 +8,7 @@ const MAX_NAMED_LEN: usize = 16;
 ///
 /// To get a utf8 string slice (`&str`), use [`Ident::as_str`]
 /// and for the null-terminated 16-byte buffer, use [`Ident::as_raw`].
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub struct Ident {
     buf: [u8; MAX_NAMED_LEN],
     len: usize,
@@ -73,6 +73,16 @@ impl Ident {
         }
     }
 
+    /// Creates a new identifier using up to 16 characters oif the provided `&str`.
+    #[must_use]
+    pub fn from_str_truncated(string: &str) -> Self {
+        let mut ident = Self::new();
+        let amount = string.len().min(MAX_NAMED_LEN);
+        ident.buf[..amount].copy_from_slice(&string.as_bytes()[..amount]);
+        ident.len = amount;
+        ident
+    }
+
     /// Expose the inner string slice
     pub fn as_str(&self) -> &str {
         // It is fine to unwrap since we always
@@ -122,6 +132,17 @@ impl Ident {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn from_str_truncated() {
+        // Basic back and forth conversion
+        let ident = super::Ident::from_str_truncated("hello.world");
+        assert_eq!("hello.world", ident.as_str());
+
+        // Basic back and forth conversion
+        let ident = super::Ident::from_str_truncated("hello.world.foo.bar");
+        assert_eq!("hello.world.foo.", ident.as_str());
+    }
+
     #[test]
     fn try_from() {
         // Basic back and forth conversion
