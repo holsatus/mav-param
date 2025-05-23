@@ -9,4 +9,4 @@ serde = ["dep:serde"]
 [dependencies]
 heapless = "0.8"
 mav-param-derive = { path = "mav-param-derive" }
-serde = { version = "1.0", features = ["derive"], optional = true }
+serde = { version = "1.0", default-features = false, features = ["derive"], optional = true }
