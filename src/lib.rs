@@ -28,6 +28,7 @@ pub enum Error {
 /// A parameter combines a 16-byte identifier with a value.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct Parameter {
     pub ident: ident::Ident,
     pub value: value::Value,

@@ -4,9 +4,13 @@ version = "0.1.0"
 edition = "2024"
 
 [features]
+defmt = ["dep:defmt"]
 serde = ["dep:serde"]
 
 [dependencies]
 heapless = "0.8"
 mav-param-derive = { path = "mav-param-derive" }
-serde = { version = "1.0", default-features = false, features = ["derive"], optional = true }
+defmt = { version = "1.0", optional = true }
+serde = { version = "1.0", default-features = false, features = [
+    "derive",
+], optional = true }

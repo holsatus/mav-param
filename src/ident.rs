@@ -25,6 +25,19 @@ impl core::fmt::Debug for Ident {
     }
 }
 
+#[cfg(feature = "defmt")]
+impl defmt::Format for Ident {
+    fn format(&self, fmt: defmt::Formatter) {
+        defmt::write!(
+            fmt,
+            "Ident {{ buf.as_str(): {}, buf: {}, len: {} }}",
+            &self.as_str(),
+            &self.buf,
+            &self.len
+        );
+    }
+}
+
 impl TryFrom<&[u8]> for Ident {
     type Error = crate::Error;
 

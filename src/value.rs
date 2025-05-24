@@ -26,25 +26,27 @@ macro_rules! impl_primitive {
         $( $variant:ident($type:ident) ),+ $(,)?
     ) => {
 
+        /// Represents the value of a parameter.
         #[derive(Debug, Clone, Copy, PartialEq)]
         #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-        /// Represents the value of a parameter.
+        #[cfg_attr(feature = "defmt", derive(defmt::Format))]
         pub enum Value {
             $( $variant($type), )+
         }
 
         /// Represents a mutable reference to some parameters value.
-        #[derive(Debug)]
+        #[derive(Debug, PartialEq)]
+        #[cfg_attr(feature = "defmt", derive(defmt::Format))]
         pub enum ValueMut<'a> {
             $( $variant(&'a mut $type), )+
         }
 
-        #[repr(C)]
-        #[cfg(target_endian = "little")]
         // An unsafe type that allows for byte-wise conversion between the inner types.
         //
         // This matches the Mavlink C API, and is why we do the same here. It is however
         // only safe to use on little-endian systems. PRs for big-endian support are welcome.
+        #[repr(C)]
+        #[cfg(target_endian = "little")]
         union Bytewise {
             $( $type: $type, )+
         }
@@ -88,7 +90,7 @@ macro_rules! impl_primitive {
             /// Obtain an owned version of this value.
             pub fn owned(&self) -> Value {
                 match &self {
-                    $( ValueMut::$variant(x) => x.into_value(), )+
+                    $( ValueMut::$variant(vm) => vm.into_value(), )+
                 }
             }
 
