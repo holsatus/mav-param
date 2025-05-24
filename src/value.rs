@@ -67,14 +67,15 @@ macro_rules! impl_primitive {
             }
         } )+
 
-
         impl Value {
+            /// Convert this [`Value`] into a [`ValueMut`] to allow per-type mutation.
             pub fn as_mut(&mut self) -> ValueMut<'_> {
                 match self {
                     $( Value::$variant(v) => ValueMut::$variant(v), )+
                 }
             }
 
+            /// Get the Mavlink-compatible bytewise representation of this [`Value`]
             #[cfg(target_endian = "little")]
             pub fn into_bytewise(&self) -> f32 {
                 match self {
@@ -91,13 +92,32 @@ macro_rules! impl_primitive {
                 }
             }
 
+            /// Get the Mavlink-compatible bytewise representation of this [`ValueMut`]
             #[cfg(target_endian = "little")]
             pub fn into_bytewise(&self) -> f32 {
                 self.owned().into_bytewise()
             }
+
+            /// Attempt to assign another [`Value`] to this [`ValueMut`] without changing its type.
+            ///
+            /// If the types matched this functions returns `true`, otherwise `false`.
+            pub fn try_assign(&mut self, other: Value) -> bool {
+                match (self, other) {
+                    $( (ValueMut::$variant(vm), Value::$variant(v)) => **vm = v, )+
+                    _ => return false, // Type mismatch
+                }
+                true
+            }
         }
     };
 }
+
+// These primitive types are supported by MavLink.
+//
+// Technically, i64, u64 and f64 are also "supported", though they
+// need to fit in a 32-bit float when sent, so supporting them does
+// not make much sense. These can be transmitted losslessly while
+// being supported. Sadly, bools are not supported.
 
 impl_primitive! {
     U8(u8),
