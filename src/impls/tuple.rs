@@ -1,27 +1,52 @@
 use crate::{Node, NodeMut, NodeRef, Tree};
 
-impl<T0: Node> Tree for (T0,) {
-    fn get_ref<'a>(&'a self, path: &str) -> Option<NodeRef<'a>> {
+macro_rules! node_impl_tuple {
+    ($($type:ident),+ $(,)?) => {
+        impl<'a, $($type: Node<'a>),+> Node<'a> for ( $($type,)+ ) {
+            fn node_ref(&'a self) -> NodeRef<'a> {
+                NodeRef::Tree(self)
+            }
+
+            fn node_mut(&'a mut self) -> NodeMut<'a> {
+                NodeMut::Tree(self)
+            }
+        }
+    };
+}
+
+node_impl_tuple!(T0);
+node_impl_tuple!(T0, T1);
+node_impl_tuple!(T0, T1, T2);
+node_impl_tuple!(T0, T1, T2, T3);
+node_impl_tuple!(T0, T1, T2, T3, T4);
+node_impl_tuple!(T0, T1, T2, T3, T4, T5);
+node_impl_tuple!(T0, T1, T2, T3, T4, T5, T6);
+node_impl_tuple!(T0, T1, T2, T3, T4, T5, T6, T7);
+node_impl_tuple!(T0, T1, T2, T3, T4, T5, T6, T7, T8);
+node_impl_tuple!(T0, T1, T2, T3, T4, T5, T6, T7, T8, T9);
+
+impl<'a, T0: Node<'a>> Tree<'a> for (T0,) {
+    fn get_ref(&'a self, path: &str) -> Option<NodeRef<'a>> {
         match path {
             "0" | "x" => Some(self.0.node_ref()),
             _ => None,
         }
     }
 
-    fn get_mut<'a>(&'a mut self, path: &str) -> Option<NodeMut<'a>> {
+    fn get_mut(&'a mut self, path: &str) -> Option<NodeMut<'a>> {
         match path {
             "0" | "x" => Some(self.0.node_mut()),
             _ => None,
         }
     }
 
-    fn entries(&self) -> &'static [&'static str] {
+    fn entries_full_list(&self) -> &'static [&'static str] {
         &["0"]
     }
 }
 
-impl<T0: Node, T1: Node> Tree for (T0, T1) {
-    fn get_ref<'a>(&'a self, path: &str) -> Option<NodeRef<'a>> {
+impl<'a, T0: Node<'a>, T1: Node<'a>> Tree<'a> for (T0, T1) {
+    fn get_ref(&'a self, path: &str) -> Option<NodeRef<'a>> {
         match path {
             "0" | "x" => Some(self.0.node_ref()),
             "1" | "y" => Some(self.1.node_ref()),
@@ -29,7 +54,7 @@ impl<T0: Node, T1: Node> Tree for (T0, T1) {
         }
     }
 
-    fn get_mut<'a>(&'a mut self, path: &str) -> Option<NodeMut<'a>> {
+    fn get_mut(&'a mut self, path: &str) -> Option<NodeMut<'a>> {
         match path {
             "0" | "x" => Some(self.0.node_mut()),
             "1" | "y" => Some(self.1.node_mut()),
@@ -37,13 +62,13 @@ impl<T0: Node, T1: Node> Tree for (T0, T1) {
         }
     }
 
-    fn entries(&self) -> &'static [&'static str] {
+    fn entries_full_list(&self) -> &'static [&'static str] {
         &["0", "1"]
     }
 }
 
-impl<T0: Node, T1: Node, T2: Node> Tree for (T0, T1, T2) {
-    fn get_ref<'a>(&'a self, path: &str) -> Option<NodeRef<'a>> {
+impl<'a, T0: Node<'a>, T1: Node<'a>, T2: Node<'a>> Tree<'a> for (T0, T1, T2) {
+    fn get_ref(&'a self, path: &str) -> Option<NodeRef<'a>> {
         match path {
             "0" | "x" => Some(self.0.node_ref()),
             "1" | "y" => Some(self.1.node_ref()),
@@ -52,7 +77,7 @@ impl<T0: Node, T1: Node, T2: Node> Tree for (T0, T1, T2) {
         }
     }
 
-    fn get_mut<'a>(&'a mut self, path: &str) -> Option<NodeMut<'a>> {
+    fn get_mut(&'a mut self, path: &str) -> Option<NodeMut<'a>> {
         match path {
             "0" | "x" => Some(self.0.node_mut()),
             "1" | "y" => Some(self.1.node_mut()),
@@ -61,13 +86,13 @@ impl<T0: Node, T1: Node, T2: Node> Tree for (T0, T1, T2) {
         }
     }
 
-    fn entries(&self) -> &'static [&'static str] {
+    fn entries_full_list(&self) -> &'static [&'static str] {
         &["0", "1", "2"]
     }
 }
 
-impl<T0: Node, T1: Node, T2: Node, T3: Node> Tree for (T0, T1, T2, T3) {
-    fn get_ref<'a>(&'a self, path: &str) -> Option<NodeRef<'a>> {
+impl<'a, T0: Node<'a>, T1: Node<'a>, T2: Node<'a>, T3: Node<'a>> Tree<'a> for (T0, T1, T2, T3) {
+    fn get_ref(&'a self, path: &str) -> Option<NodeRef<'a>> {
         match path {
             "0" | "x" => Some(self.0.node_ref()),
             "1" | "y" => Some(self.1.node_ref()),
@@ -77,7 +102,7 @@ impl<T0: Node, T1: Node, T2: Node, T3: Node> Tree for (T0, T1, T2, T3) {
         }
     }
 
-    fn get_mut<'a>(&'a mut self, path: &str) -> Option<NodeMut<'a>> {
+    fn get_mut(&'a mut self, path: &str) -> Option<NodeMut<'a>> {
         match path {
             "0" | "x" => Some(self.0.node_mut()),
             "1" | "y" => Some(self.1.node_mut()),
@@ -87,13 +112,15 @@ impl<T0: Node, T1: Node, T2: Node, T3: Node> Tree for (T0, T1, T2, T3) {
         }
     }
 
-    fn entries(&self) -> &'static [&'static str] {
+    fn entries_full_list(&self) -> &'static [&'static str] {
         &["0", "1", "2", "3"]
     }
 }
 
-impl<T0: Node, T1: Node, T2: Node, T3: Node, T4: Node> Tree for (T0, T1, T2, T3, T4) {
-    fn get_ref<'a>(&'a self, path: &str) -> Option<NodeRef<'a>> {
+impl<'a, T0: Node<'a>, T1: Node<'a>, T2: Node<'a>, T3: Node<'a>, T4: Node<'a>> Tree<'a>
+    for (T0, T1, T2, T3, T4)
+{
+    fn get_ref(&'a self, path: &str) -> Option<NodeRef<'a>> {
         match path {
             "0" | "x" => Some(self.0.node_ref()),
             "1" | "y" => Some(self.1.node_ref()),
@@ -104,7 +131,7 @@ impl<T0: Node, T1: Node, T2: Node, T3: Node, T4: Node> Tree for (T0, T1, T2, T3,
         }
     }
 
-    fn get_mut<'a>(&'a mut self, path: &str) -> Option<NodeMut<'a>> {
+    fn get_mut(&'a mut self, path: &str) -> Option<NodeMut<'a>> {
         match path {
             "0" | "x" => Some(self.0.node_mut()),
             "1" | "y" => Some(self.1.node_mut()),
@@ -115,13 +142,15 @@ impl<T0: Node, T1: Node, T2: Node, T3: Node, T4: Node> Tree for (T0, T1, T2, T3,
         }
     }
 
-    fn entries(&self) -> &'static [&'static str] {
+    fn entries_full_list(&self) -> &'static [&'static str] {
         &["0", "1", "2", "3", "4"]
     }
 }
 
-impl<T0: Node, T1: Node, T2: Node, T3: Node, T4: Node, T5: Node> Tree for (T0, T1, T2, T3, T4, T5) {
-    fn get_ref<'a>(&'a self, path: &str) -> Option<NodeRef<'a>> {
+impl<'a, T0: Node<'a>, T1: Node<'a>, T2: Node<'a>, T3: Node<'a>, T4: Node<'a>, T5: Node<'a>>
+    Tree<'a> for (T0, T1, T2, T3, T4, T5)
+{
+    fn get_ref(&'a self, path: &str) -> Option<NodeRef<'a>> {
         match path {
             "0" | "x" => Some(self.0.node_ref()),
             "1" | "y" => Some(self.1.node_ref()),
@@ -133,7 +162,7 @@ impl<T0: Node, T1: Node, T2: Node, T3: Node, T4: Node, T5: Node> Tree for (T0, T
         }
     }
 
-    fn get_mut<'a>(&'a mut self, path: &str) -> Option<NodeMut<'a>> {
+    fn get_mut(&'a mut self, path: &str) -> Option<NodeMut<'a>> {
         match path {
             "0" | "x" => Some(self.0.node_mut()),
             "1" | "y" => Some(self.1.node_mut()),
@@ -145,15 +174,23 @@ impl<T0: Node, T1: Node, T2: Node, T3: Node, T4: Node, T5: Node> Tree for (T0, T
         }
     }
 
-    fn entries(&self) -> &'static [&'static str] {
+    fn entries_full_list(&self) -> &'static [&'static str] {
         &["0", "1", "2", "3", "4", "5"]
     }
 }
 
-impl<T0: Node, T1: Node, T2: Node, T3: Node, T4: Node, T5: Node, T6: Node> Tree
-    for (T0, T1, T2, T3, T4, T5, T6)
+impl<
+    'a,
+    T0: Node<'a>,
+    T1: Node<'a>,
+    T2: Node<'a>,
+    T3: Node<'a>,
+    T4: Node<'a>,
+    T5: Node<'a>,
+    T6: Node<'a>,
+> Tree<'a> for (T0, T1, T2, T3, T4, T5, T6)
 {
-    fn get_ref<'a>(&'a self, path: &str) -> Option<NodeRef<'a>> {
+    fn get_ref(&'a self, path: &str) -> Option<NodeRef<'a>> {
         match path {
             "0" | "x" => Some(self.0.node_ref()),
             "1" | "y" => Some(self.1.node_ref()),
@@ -166,7 +203,7 @@ impl<T0: Node, T1: Node, T2: Node, T3: Node, T4: Node, T5: Node, T6: Node> Tree
         }
     }
 
-    fn get_mut<'a>(&'a mut self, path: &str) -> Option<NodeMut<'a>> {
+    fn get_mut(&'a mut self, path: &str) -> Option<NodeMut<'a>> {
         match path {
             "0" | "x" => Some(self.0.node_mut()),
             "1" | "y" => Some(self.1.node_mut()),
@@ -179,15 +216,24 @@ impl<T0: Node, T1: Node, T2: Node, T3: Node, T4: Node, T5: Node, T6: Node> Tree
         }
     }
 
-    fn entries(&self) -> &'static [&'static str] {
+    fn entries_full_list(&self) -> &'static [&'static str] {
         &["0", "1", "2", "3", "4", "5", "6"]
     }
 }
 
-impl<T0: Node, T1: Node, T2: Node, T3: Node, T4: Node, T5: Node, T6: Node, T7: Node> Tree
-    for (T0, T1, T2, T3, T4, T5, T6, T7)
+impl<
+    'a,
+    T0: Node<'a>,
+    T1: Node<'a>,
+    T2: Node<'a>,
+    T3: Node<'a>,
+    T4: Node<'a>,
+    T5: Node<'a>,
+    T6: Node<'a>,
+    T7: Node<'a>,
+> Tree<'a> for (T0, T1, T2, T3, T4, T5, T6, T7)
 {
-    fn get_ref<'a>(&'a self, path: &str) -> Option<NodeRef<'a>> {
+    fn get_ref(&'a self, path: &str) -> Option<NodeRef<'a>> {
         match path {
             "0" | "x" => Some(self.0.node_ref()),
             "1" | "y" => Some(self.1.node_ref()),
@@ -201,7 +247,7 @@ impl<T0: Node, T1: Node, T2: Node, T3: Node, T4: Node, T5: Node, T6: Node, T7: N
         }
     }
 
-    fn get_mut<'a>(&'a mut self, path: &str) -> Option<NodeMut<'a>> {
+    fn get_mut(&'a mut self, path: &str) -> Option<NodeMut<'a>> {
         match path {
             "0" | "x" => Some(self.0.node_mut()),
             "1" | "y" => Some(self.1.node_mut()),
@@ -215,15 +261,25 @@ impl<T0: Node, T1: Node, T2: Node, T3: Node, T4: Node, T5: Node, T6: Node, T7: N
         }
     }
 
-    fn entries(&self) -> &'static [&'static str] {
+    fn entries_full_list(&self) -> &'static [&'static str] {
         &["0", "1", "2", "3", "4", "5", "6", "7"]
     }
 }
 
-impl<T0: Node, T1: Node, T2: Node, T3: Node, T4: Node, T5: Node, T6: Node, T7: Node, T8: Node> Tree
-    for (T0, T1, T2, T3, T4, T5, T6, T7, T8)
+impl<
+    'a,
+    T0: Node<'a>,
+    T1: Node<'a>,
+    T2: Node<'a>,
+    T3: Node<'a>,
+    T4: Node<'a>,
+    T5: Node<'a>,
+    T6: Node<'a>,
+    T7: Node<'a>,
+    T8: Node<'a>,
+> Tree<'a> for (T0, T1, T2, T3, T4, T5, T6, T7, T8)
 {
-    fn get_ref<'a>(&'a self, path: &str) -> Option<NodeRef<'a>> {
+    fn get_ref(&'a self, path: &str) -> Option<NodeRef<'a>> {
         match path {
             "0" | "x" => Some(self.0.node_ref()),
             "1" | "y" => Some(self.1.node_ref()),
@@ -238,7 +294,7 @@ impl<T0: Node, T1: Node, T2: Node, T3: Node, T4: Node, T5: Node, T6: Node, T7: N
         }
     }
 
-    fn get_mut<'a>(&'a mut self, path: &str) -> Option<NodeMut<'a>> {
+    fn get_mut(&'a mut self, path: &str) -> Option<NodeMut<'a>> {
         match path {
             "0" | "x" => Some(self.0.node_mut()),
             "1" | "y" => Some(self.1.node_mut()),
@@ -253,25 +309,26 @@ impl<T0: Node, T1: Node, T2: Node, T3: Node, T4: Node, T5: Node, T6: Node, T7: N
         }
     }
 
-    fn entries(&self) -> &'static [&'static str] {
+    fn entries_full_list(&self) -> &'static [&'static str] {
         &["0", "1", "2", "3", "4", "5", "6", "7", "8"]
     }
 }
 
 impl<
-    T0: Node,
-    T1: Node,
-    T2: Node,
-    T3: Node,
-    T4: Node,
-    T5: Node,
-    T6: Node,
-    T7: Node,
-    T8: Node,
-    T9: Node,
-> Tree for (T0, T1, T2, T3, T4, T5, T6, T7, T8, T9)
+    'a,
+    T0: Node<'a>,
+    T1: Node<'a>,
+    T2: Node<'a>,
+    T3: Node<'a>,
+    T4: Node<'a>,
+    T5: Node<'a>,
+    T6: Node<'a>,
+    T7: Node<'a>,
+    T8: Node<'a>,
+    T9: Node<'a>,
+> Tree<'a> for (T0, T1, T2, T3, T4, T5, T6, T7, T8, T9)
 {
-    fn get_ref<'a>(&'a self, path: &str) -> Option<NodeRef<'a>> {
+    fn get_ref(&'a self, path: &str) -> Option<NodeRef<'a>> {
         match path {
             "0" | "x" => Some(self.0.node_ref()),
             "1" | "y" => Some(self.1.node_ref()),
@@ -287,7 +344,7 @@ impl<
         }
     }
 
-    fn get_mut<'a>(&'a mut self, path: &str) -> Option<NodeMut<'a>> {
+    fn get_mut(&'a mut self, path: &str) -> Option<NodeMut<'a>> {
         match path {
             "0" | "x" => Some(self.0.node_mut()),
             "1" | "y" => Some(self.1.node_mut()),
@@ -303,7 +360,7 @@ impl<
         }
     }
 
-    fn entries(&self) -> &'static [&'static str] {
+    fn entries_full_list(&self) -> &'static [&'static str] {
         &["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
     }
 }

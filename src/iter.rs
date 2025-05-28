@@ -1,14 +1,14 @@
 use heapless::Vec;
 
-use crate::{Error, NodeRef, Parameter, Tree};
+use crate::{Error, NodeRef, Parameter};
 
-/// Maximum ident/path depth
-pub const MAX_IDENT_DEPTH: usize = 5;
+/// Maximum "recursion" depth
+pub const STACK_DEPTH: usize = 5;
 
 /// The state of a single "level" of tree iteration
 struct Segment<'a> {
     // Reference to the tree at this level
-    tree: &'a dyn Tree,
+    node_ref: NodeRef<'a>,
     // Current index in the tree's entries
     index: usize,
 }
@@ -22,14 +22,14 @@ pub struct ParamIter<'a> {
     // Single path buffer that's modified during traversal
     ident_buffer: crate::ident::Ident,
     // Stack stores only minimal data for traversal state
-    stack: Vec<Segment<'a>, MAX_IDENT_DEPTH>,
+    stack: Vec<Segment<'a>, STACK_DEPTH>,
 }
 
 impl<'a> ParamIter<'a> {
     /// Creates a new parameter iterator starting at the given tree.
     ///
     /// Note: A tree is never aware of its parents, so they are not included in the path.
-    pub fn new(tree: &'a dyn Tree, name: Option<&str>) -> Self {
+    pub fn new(node_ref: NodeRef<'a>, name: Option<&str>) -> Self {
         let mut ident_buffer = crate::ident::Ident::new();
 
         if let Some(name) = name {
@@ -38,7 +38,7 @@ impl<'a> ParamIter<'a> {
 
         // Push the tree root to begin traversal
         let mut stack = Vec::new();
-        let _ = stack.push(Segment { tree, index: 0 });
+        let _ = stack.push(Segment { node_ref, index: 0 });
 
         Self {
             ident_buffer,
@@ -47,57 +47,97 @@ impl<'a> ParamIter<'a> {
     }
 }
 
+impl ParamIter<'_> {}
+
 impl Iterator for ParamIter<'_> {
     type Item = Result<Parameter, Error>;
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
             let segment = self.stack.last_mut()?;
-            let entries = segment.tree.entries();
 
-            // Check if we've processed all entries in the current tree
-            if segment.index >= entries.len() {
-                // We're done with this node
-                self.stack.pop()?;
-
-                // Don't pop path segment for the root level
-                if !self.stack.is_empty() {
+            match segment.node_ref {
+                NodeRef::None => {
+                    self.stack.pop()?;
                     self.ident_buffer.pop_entry();
+                    continue;
                 }
+                NodeRef::Tree(tree) => {
+                    let entries = tree.entries_full_list();
 
-                continue;
-            }
+                    // Check if we've processed all entries in the current tree
+                    if segment.index >= entries.len() {
+                        // We're done with this node
+                        self.stack.pop()?;
 
-            // Get the next entry to process
-            let entry_name = entries[segment.index];
-            segment.index += 1;
+                        // Don't pop path segment for the root level
+                        if !self.stack.is_empty() {
+                            self.ident_buffer.pop_entry();
+                        }
 
-            // Add this segment to the path (temporarily)
-            if !self.ident_buffer.push_entry(entry_name) {
-                return Some(Err(Error::PathTooLong(
-                    self.ident_buffer.clone(),
-                    entry_name,
-                )));
-            }
+                        continue;
+                    }
 
-            match segment.tree.get_ref(entry_name)? {
-                NodeRef::Value(value) => {
+                    // Get the next entry to process
+                    let entry_name = entries[segment.index];
+                    segment.index += 1;
+
+                    // If no node is returned, it is because it is conditionally disabled
+                    let Some(node_ref) = tree.get_ref(entry_name) else {
+                        continue;
+                    };
+
+                    // Add this segment to the path (temporarily)
+                    if !self.ident_buffer.push_entry(entry_name) {
+                        return Some(Err(Error::PathTooLong(
+                            self.ident_buffer.clone(),
+                            entry_name,
+                        )));
+                    }
+
+                    if self.stack.push(Segment { node_ref, index: 0 }).is_err() {
+                        return Some(Err(Error::DepthTooBig(
+                            self.ident_buffer.clone(),
+                            entry_name,
+                        )));
+                    }
+                }
+                NodeRef::Enum(union) => {
+                    let entry_name = "#";
+
+                    // Add this segment to the path (temporarily)
+                    if !self.ident_buffer.push_entry(entry_name) {
+                        return Some(Err(Error::PathTooLong(
+                            self.ident_buffer.clone(),
+                            entry_name,
+                        )));
+                    }
+
                     // Create a copy of the current path for the return value
                     let ident = self.ident_buffer.clone();
 
                     // Remove the temporary segment from our buffer
                     self.ident_buffer.pop_entry();
 
-                    return Some(Ok(Parameter { ident, value }));
+                    // Set the current node as the active variant
+                    segment.node_ref = union.active_node_ref();
+
+                    // Return the discriminant as the value
+                    return Some(Ok(Parameter {
+                        ident,
+                        value: union.discriminant(),
+                    }));
                 }
-                NodeRef::Tree(tree) => {
-                    // Push this node for traversal
-                    if self.stack.push(Segment { tree, index: 0 }).is_err() {
-                        return Some(Err(Error::DepthTooBig(
-                            self.ident_buffer.clone(),
-                            entry_name,
-                        )));
-                    }
+                // Maybe just handle it like
+                NodeRef::Value(value) => {
+                    // Create a copy of the current path for the return value
+                    let ident = self.ident_buffer.clone();
+
+                    // Remove the temporary segment from our buffer
+                    self.ident_buffer.pop_entry();
+                    self.stack.pop();
+
+                    return Some(Ok(Parameter { ident, value }));
                 }
             }
         }
@@ -148,6 +188,7 @@ mod tests {
         // Collect all parameters into a vector
         let results: Vec<_> = param_iter_named(&params, "test")
             .filter_map(Result::ok)
+            .take(20)
             .collect();
 
         // Check we got the expected number of parameters (test.sub.deep.val should fail)
