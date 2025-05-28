@@ -1,15 +1,15 @@
 #![cfg_attr(not(test), no_std)]
 #![warn(clippy::pedantic)]
 
-pub mod ident;
-pub mod iter;
-pub mod tree_impls;
-pub mod value;
-
 pub use ident::Ident;
 pub use value::{Value, ValueMut};
 
 pub use mav_param_derive::{Enum, Node, Tree};
+
+pub mod ident;
+pub mod iter;
+pub mod impls;
+pub mod value;
 
 #[derive(Debug, PartialEq)]
 pub enum Error {
@@ -86,7 +86,7 @@ pub fn param_iter_named<'a>(tree: &'a dyn Tree<'a>, name: &str) -> iter::ParamIt
 ///
 /// Note: This iterator yields `Result`, since some parameter identifiers
 /// may turn out to be longer than 16 bytes, or if structs are nested too deeply.
-pub fn param_ite<'a>(tree: &'a dyn Tree<'a>) -> iter::ParamIter<'a> {
+pub fn param_iter<'a>(tree: &'a dyn Tree<'a>) -> iter::ParamIter<'a> {
     iter::ParamIter::new(NodeRef::Tree(tree), None)
 }
 
@@ -100,7 +100,7 @@ pub fn get_value(mut tree_ref: &dyn Tree, ident: &str) -> Option<value::Value> {
         'enum_loop: loop {
             match node_ref {
                 NodeRef::Enum(enum_ref) => {
-                    node_ref = enum_ref.node_ref();
+                    node_ref = enum_ref.active_node_ref();
                     continue 'enum_loop;
                 }
                 NodeRef::Tree(new_tree_ref) => {
@@ -127,7 +127,7 @@ pub fn get_value_mut<'a>(
         'enum_loop: loop {
             match node_mut {
                 NodeMut::Enum(enum_ref) => {
-                    node_mut = enum_ref.node_mut();
+                    node_mut = enum_ref.active_node_mut();
                     continue 'enum_loop;
                 }
                 NodeMut::Tree(new_tree_mut) => {
