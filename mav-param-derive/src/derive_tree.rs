@@ -70,10 +70,6 @@ fn generate_named_fields_impl(
                 let condition_expr = syn::parse_str::<syn::Expr>(&condition_str)
                     .expect("Failed to parse condition expression");
 
-                if !matches!(condition_expr, syn::Expr::Binary(_) ) {
-                    panic!("The conditional ({}) must be a binary/boolean expression", condition_str)
-                }
-                
                 quote! {
                     #param_name if #condition_expr => Some(self.#field_name.node_mut()),
                 }
