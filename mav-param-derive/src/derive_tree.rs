@@ -108,12 +108,12 @@ fn generate_named_fields_impl(
             }
         }
 
-        impl <'a> mav_param::Node<'a> for #name {
-            fn node_ref(&'a self) -> mav_param::NodeRef<'a> {
+        impl mav_param::Node for #name {
+            fn node_ref(&self) -> mav_param::NodeRef<'_> {
                 mav_param::NodeRef::Tree(self)
             }
 
-            fn node_mut(&'a mut self) -> mav_param::NodeMut<'a> {
+            fn node_mut(&mut self) -> mav_param::NodeMut<'_> {
                 mav_param::NodeMut::Tree(self)
             }
         }

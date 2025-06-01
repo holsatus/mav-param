@@ -53,7 +53,7 @@ pub struct Parameter {
     pub value: value::Value,
 }
 
-pub trait Tree<'a>: Node<'a> {
+pub trait Tree<'a>: Node {
     /// Retrieve a reference to the node at a given path.
     fn get_ref(&'a self, node: &str) -> Option<NodeRef<'a>>;
 
@@ -68,7 +68,7 @@ pub trait Tree<'a>: Node<'a> {
     fn entries(&self) -> &'static [&'static str];
 }
 
-pub trait Enum<'a>: Node<'a> + value::Leaf {
+pub trait Enum<'a>: Node + value::Leaf {
     /// List all discriminants as [`Value`] for this enum
     fn discriminants(&self) -> &'static [value::Value];
 
@@ -81,21 +81,21 @@ pub trait Enum<'a>: Node<'a> + value::Leaf {
 
 /// A [`Node`] represents either a [`Tree`] (struct),
 /// an [`Enum`] (enum) or a [`Leaf`] (value).
-pub trait Node<'a>: Send + Sync {
+pub trait Node: Send + Sync {
     /// Turn a dynamic implementor of [`Node`] into a [`NodeRef`]
     /// to allow for working with the specific variants.
-    fn node_ref(&'a self) -> NodeRef<'a>;
+    fn node_ref<'a>(&'a self) -> NodeRef<'a>;
 
     /// Turn a dynamic implementor of [`Node`] into a [`NodeRef`]
     /// to allow for working with the specific variants.
-    fn node_mut(&'a mut self) -> NodeMut<'a>;
+    fn node_mut<'a>(&'a mut self) -> NodeMut<'a>;
 }
 
 /// Iterate all values of this tree with a "root" name defined
 ///
 /// Note: This iterator yields `Result`, since some parameter identifiers
 /// may turn out to be longer than 16 bytes, or if structs are nested too deeply.
-pub fn param_iter_named<'a>(node: &'a dyn Node<'a>, name: &str) -> iter::ParamIter<'a> {
+pub fn param_iter_named<'a>(node: &'a dyn Node, name: &str) -> iter::ParamIter<'a> {
     iter::ParamIter::new(node.node_ref(), Some(name))
 }
 
@@ -103,12 +103,12 @@ pub fn param_iter_named<'a>(node: &'a dyn Node<'a>, name: &str) -> iter::ParamIt
 ///
 /// Note: This iterator yields `Result`, since some parameter identifiers
 /// may turn out to be longer than 16 bytes, or if structs are nested too deeply.
-pub fn param_iter<'a>(node: &'a dyn Node<'a>) -> iter::ParamIter<'a> {
+pub fn param_iter(node: &dyn Node) -> iter::ParamIter<'_> {
     iter::ParamIter::new(node.node_ref(), None)
 }
 
 /// Returns the value for the given identifier
-pub fn get_value<'a>(tree_ref: &'a dyn Node<'a>, ident: &str) -> Option<value::Value> {
+pub fn get_value(tree_ref: &dyn Node, ident: &str) -> Option<value::Value> {
     let mut segments = ident.trim_start_matches('.').split('.');
     let mut work_node = tree_ref.node_ref();
     let mut next = segments.next();
@@ -140,7 +140,7 @@ pub fn get_value<'a>(tree_ref: &'a dyn Node<'a>, ident: &str) -> Option<value::V
 }
 
 /// Returns a mutable reference to the value for the given identifier
-pub fn set_value<'a>(tree_mut: &'a mut dyn Node<'a>, ident: &str, value: Value) -> Option<()> {
+pub fn set_value(tree_mut: &mut dyn Node, ident: &str, value: Value) -> Option<()> {
     let mut segments = ident.trim_start_matches('.').split('.');
     let mut work_node = tree_mut.node_mut();
     let mut next = segments.next();
@@ -229,7 +229,6 @@ mod tests {
         assert_eq!(get_value(&test, ".var.i1"), Some(crate::Value::U8(2)));
     }
 
-
     #[test]
     fn basic_derive() {
         #[derive(mav_param::Tree, Default)]
@@ -258,11 +257,6 @@ mod tests {
                 Union::Var1(Default::default())
             }
         }
-
-
-        #[derive(mav_param::Node)]
-        struct TestNode(u8);
-
 
         let mut test = Params::default();
 

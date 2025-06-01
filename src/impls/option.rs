@@ -1,16 +1,16 @@
 use crate::{Enum, Leaf, Node, NodeMut, NodeRef, Value};
 
-impl<'a, T: Node<'a> + Default> Node<'a> for Option<T> {
-    fn node_ref(&'a self) -> NodeRef<'a> {
+impl<T: Node + Default> Node for Option<T> {
+    fn node_ref(&self) -> NodeRef<'_> {
         NodeRef::Enum(self)
     }
 
-    fn node_mut(&'a mut self) -> NodeMut<'a> {
+    fn node_mut(&mut self) -> NodeMut<'_> {
         NodeMut::Enum(self)
     }
 }
 
-impl<'a, T: Node<'a> + Default> Leaf for Option<T> {
+impl<T: Node + Default> Leaf for Option<T> {
     fn get(&self) -> Value {
         match self {
             None => Value::U8(0),
@@ -28,7 +28,7 @@ impl<'a, T: Node<'a> + Default> Leaf for Option<T> {
     }
 }
 
-impl<'a, T: Node<'a> + Default> Enum<'a> for Option<T> {
+impl<'a, T: Node + Default> Enum<'a> for Option<T> {
     fn discriminants(&self) -> &'static [Value] {
         &[Value::U8(0), Value::U8(1)]
     }

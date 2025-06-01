@@ -85,7 +85,7 @@ macro_rules! impl_primitive {
             }
         } )+
 
-        $( impl super::Node<'_> for $type {
+        $( impl super::Node for $type {
             fn node_ref(&self) -> super::NodeRef<'_> {
                 super::NodeRef::Leaf(self)
             }

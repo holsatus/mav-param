@@ -3,12 +3,12 @@ use crate::{Node, NodeMut, NodeRef, Tree};
 macro_rules! node_impl_array {
     ($($num:literal),+ $(,)?) => {
         $(
-            impl<'a, T: Node<'a>> Node<'a> for [T; $num] {
-                fn node_ref(&'a self) -> NodeRef<'a> {
+            impl<T: Node> Node for [T; $num] {
+                fn node_ref(&self) -> NodeRef<'_> {
                     NodeRef::Tree(self)
                 }
 
-                fn node_mut(&'a mut self) -> NodeMut<'a> {
+                fn node_mut(&mut self) -> NodeMut<'_> {
                     NodeMut::Tree(self)
                 }
             }
@@ -18,7 +18,7 @@ macro_rules! node_impl_array {
 
 node_impl_array!(1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
 
-impl<'a, T: Node<'a>> Tree<'a> for [T; 1] {
+impl<'a, T: Node> Tree<'a> for [T; 1] {
     fn get_ref(&'a self, path: &str) -> Option<NodeRef<'a>> {
         match path {
             "0" | "x" => Some(self[0].node_ref()),
@@ -38,7 +38,7 @@ impl<'a, T: Node<'a>> Tree<'a> for [T; 1] {
     }
 }
 
-impl<'a, T: Node<'a>> Tree<'a> for [T; 2] {
+impl<'a, T: Node> Tree<'a> for [T; 2] {
     fn get_ref(&'a self, path: &str) -> Option<NodeRef<'a>> {
         match path {
             "0" | "x" => Some(self[0].node_ref()),
@@ -60,7 +60,7 @@ impl<'a, T: Node<'a>> Tree<'a> for [T; 2] {
     }
 }
 
-impl<'a, T: Node<'a>> Tree<'a> for [T; 3] {
+impl<'a, T: Node> Tree<'a> for [T; 3] {
     fn get_ref(&'a self, path: &str) -> Option<NodeRef<'a>> {
         match path {
             "0" | "x" => Some(self[0].node_ref()),
@@ -84,7 +84,7 @@ impl<'a, T: Node<'a>> Tree<'a> for [T; 3] {
     }
 }
 
-impl<'a, T: Node<'a>> Tree<'a> for [T; 4] {
+impl<'a, T: Node> Tree<'a> for [T; 4] {
     fn get_ref(&'a self, path: &str) -> Option<NodeRef<'a>> {
         match path {
             "0" | "x" => Some(self[0].node_ref()),
@@ -110,7 +110,7 @@ impl<'a, T: Node<'a>> Tree<'a> for [T; 4] {
     }
 }
 
-impl<'a, T: Node<'a>> Tree<'a> for [T; 5] {
+impl<'a, T: Node> Tree<'a> for [T; 5] {
     fn get_ref(&'a self, path: &str) -> Option<NodeRef<'a>> {
         match path {
             "0" | "x" => Some(self[0].node_ref()),
@@ -138,7 +138,7 @@ impl<'a, T: Node<'a>> Tree<'a> for [T; 5] {
     }
 }
 
-impl<'a, T: Node<'a>> Tree<'a> for [T; 6] {
+impl<'a, T: Node> Tree<'a> for [T; 6] {
     fn get_ref(&'a self, path: &str) -> Option<NodeRef<'a>> {
         match path {
             "0" | "x" => Some(self[0].node_ref()),
@@ -168,7 +168,7 @@ impl<'a, T: Node<'a>> Tree<'a> for [T; 6] {
     }
 }
 
-impl<'a, T: Node<'a>> Tree<'a> for [T; 7] {
+impl<'a, T: Node> Tree<'a> for [T; 7] {
     fn get_ref(&'a self, path: &str) -> Option<NodeRef<'a>> {
         match path {
             "0" | "x" => Some(self[0].node_ref()),
@@ -200,7 +200,7 @@ impl<'a, T: Node<'a>> Tree<'a> for [T; 7] {
     }
 }
 
-impl<'a, T: Node<'a>> Tree<'a> for [T; 8] {
+impl<'a, T: Node> Tree<'a> for [T; 8] {
     fn get_ref(&'a self, path: &str) -> Option<NodeRef<'a>> {
         match path {
             "0" | "x" => Some(self[0].node_ref()),
@@ -234,7 +234,7 @@ impl<'a, T: Node<'a>> Tree<'a> for [T; 8] {
     }
 }
 
-impl<'a, T: Node<'a>> Tree<'a> for [T; 9] {
+impl<'a, T: Node> Tree<'a> for [T; 9] {
     fn get_ref(&'a self, path: &str) -> Option<NodeRef<'a>> {
         match path {
             "0" | "x" => Some(self[0].node_ref()),
@@ -270,7 +270,7 @@ impl<'a, T: Node<'a>> Tree<'a> for [T; 9] {
     }
 }
 
-impl<'a, T: Node<'a>> Tree<'a> for [T; 10] {
+impl<'a, T: Node> Tree<'a> for [T; 10] {
     fn get_ref(&'a self, path: &str) -> Option<NodeRef<'a>> {
         match path {
             "0" | "x" => Some(self[0].node_ref()),
