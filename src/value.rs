@@ -70,7 +70,6 @@ macro_rules! impl_primitive {
             }
         } )+
 
-
         $( impl Leaf for $type {
             fn get(&self) -> Value {
                 Value::$variant(*self)

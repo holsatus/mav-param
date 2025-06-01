@@ -95,7 +95,7 @@ pub trait Node<'a>: Send + Sync + 'a {
 ///
 /// Note: This iterator yields `Result`, since some parameter identifiers
 /// may turn out to be longer than 16 bytes, or if structs are nested too deeply.
-pub fn param_iter_named<'a>(node: &'a impl Node<'a>, name: &str) -> iter::ParamIter<'a> {
+pub fn param_iter_named<'a>(node: &'a dyn Node<'a>, name: &str) -> iter::ParamIter<'a> {
     iter::ParamIter::new(node.node_ref(), Some(name))
 }
 
@@ -103,72 +103,126 @@ pub fn param_iter_named<'a>(node: &'a impl Node<'a>, name: &str) -> iter::ParamI
 ///
 /// Note: This iterator yields `Result`, since some parameter identifiers
 /// may turn out to be longer than 16 bytes, or if structs are nested too deeply.
-pub fn param_iter<'a>(node: &'a impl Node<'a>) -> iter::ParamIter<'a> {
+pub fn param_iter<'a>(node: &'a dyn Node<'a>) -> iter::ParamIter<'a> {
     iter::ParamIter::new(node.node_ref(), None)
 }
 
 /// Returns the value for the given identifier
-pub fn get_value(mut tree_ref: &dyn Tree, ident: &str) -> Option<value::Value> {
+pub fn get_value<'a>(tree_ref: &'a dyn Node<'a>, ident: &str) -> Option<value::Value> {
     let mut segments = ident.trim_start_matches('.').split('.');
-    'tree_loop: loop {
-        let next = segments.next()?;
-        let mut node_ref = tree_ref.get_ref(next)?;
+    let mut work_node = tree_ref.node_ref();
+    let mut next = segments.next();
 
-        'enum_loop: loop {
-            match node_ref {
-                NodeRef::Enum(enum_ref) => {
-                    node_ref = enum_ref.active_node_ref();
-                    continue 'enum_loop;
-                }
-                NodeRef::Tree(new_tree_ref) => {
-                    tree_ref = new_tree_ref;
-                    continue 'tree_loop;
-                }
-                NodeRef::Leaf(value_ref) => {
-                    return Some(value_ref.get())
-                },
-                NodeRef::None => return None,
-            }
+    loop {
+
+        match work_node {
+            NodeRef::None => return None,
+            NodeRef::Tree(tree_ref) => {
+                let segment = next.take().or_else(||segments.next())?;
+                work_node = tree_ref.get_ref(segment)?;
+            },
+            NodeRef::Enum(enum_ref) => {
+                let segment = next.take().or_else(||segments.next());
+                work_node = if segment == Some("#") {
+                    NodeRef::Leaf(enum_ref)
+                } else {
+                    next = segment;
+                    enum_ref.active_node_ref()
+                };
+
+                continue;
+            },
+            NodeRef::Leaf(leaf_ref) => {
+                return Some(leaf_ref.get())
+            },
         }
     }
 }
 
 /// Returns a mutable reference to the value for the given identifier
-pub fn set_value<'a>(tree_mut: &'a mut dyn Tree, ident: &str, value: Value) -> bool {
-    let inner = || {
-        let mut tree_mut = tree_mut;
-        let mut segments = ident.trim_start_matches('.').split('.');
-        'tree_loop: loop {
-            let next = segments.next()?;
-            let mut node_mut = tree_mut.get_mut(next)?;
+pub fn set_value<'a>(tree_mut: &'a mut dyn Node<'a>, ident: &str, value: Value) -> Option<()> {
+    let mut segments = ident.trim_start_matches('.').split('.');
+    let mut work_node = tree_mut.node_mut();
+    let mut next = segments.next();
 
-            'enum_loop: loop {
-                match node_mut {
-                    NodeMut::Enum(enum_ref) => {
-                        node_mut = enum_ref.active_node_mut();
-                        continue 'enum_loop;
-                    }
-                    NodeMut::Tree(new_tree_mut) => {
-                        tree_mut = new_tree_mut;
-                        continue 'tree_loop;
-                    }
-                    NodeMut::Leaf(value_mut) => {
-                        return value_mut.set(value).then(||());
-                    }
-                    NodeMut::None => return None,
-                }
-            }
+    loop {
+
+        match work_node {
+            NodeMut::None => return None,
+            NodeMut::Tree(tree_ref) => {
+                let segment = next.take().or_else(||segments.next())?;
+                work_node = tree_ref.get_mut(segment)?;
+            },
+            NodeMut::Enum(enum_ref) => {
+                let segment = next.take().or_else(||segments.next());
+                work_node = if segment == Some("#") {
+                    NodeMut::Leaf(enum_ref)
+                } else {
+                    next = segment;
+                    enum_ref.active_node_mut()
+                };
+
+                continue;
+            },
+            NodeMut::Leaf(leaf_ref) => {
+                return leaf_ref.set(value).then(||())
+            },
         }
-    };
-
-    // Only interested in the boolean
-    inner().is_some()
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::{self as mav_param};
+    use crate::{self as mav_param, get_value, set_value};
     use mav_param::{Tree, param_iter_named};
+
+    #[test]
+    fn get_value_func() {
+        #[derive(mav_param::Tree, Default)]
+        struct Params {
+            entry1: u8,
+            entry2: u8,
+            var: Union,
+        }
+
+        #[repr(u8)]
+        #[derive(mav_param::Enum)]
+        enum Union {
+            Var1(Inner) = 0,
+            Var2(f32) = 1,
+        }
+
+        #[derive(mav_param::Tree, Default)]
+        struct Inner {
+            i1: u8,
+            i2: u8,
+            i3: u8,
+        }
+
+        impl Default for Union {
+            fn default() -> Self {
+                Union::Var1(Default::default())
+            }
+        }
+
+        let mut test = Params::default();
+
+        assert_eq!(get_value(&test, ".var.#"), Some(crate::Value::U8(0)));
+        assert_eq!(get_value(&test, ".var.i1"), Some(crate::Value::U8(0)));
+
+        // This will implicitly update the discriminant 'leaf'
+        test.var = Union::Var2(5.0);
+
+        assert_eq!(get_value(&test, ".var.#"), Some(crate::Value::U8(1)));
+        assert_eq!(get_value(&test, ".var"), Some(crate::Value::F32(5.0)));
+
+        // Setting the discriminant will set the variant to default
+        assert_eq!(set_value(&mut test, ".var.#", crate::Value::U8(0)), Some(()));
+
+        assert_eq!(get_value(&test, ".var.#"), Some(crate::Value::U8(0)));
+        assert_eq!(get_value(&test, ".var.i1"), Some(crate::Value::U8(0)));
+    }
+
 
     #[test]
     fn basic_derive() {
