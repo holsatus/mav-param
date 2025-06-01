@@ -157,7 +157,7 @@ mod tests {
     fn basic_iteration() {
         #[derive(Tree)]
         struct TestParams {
-            #[tree(rename = "sub")]
+            #[param(rename = "sub")]
             subtree: SubTree,
             value1: u8,
             value2: i16,
@@ -168,7 +168,7 @@ mod tests {
         struct SubTree {
             leaf1: u32,
             leaf2: f32,
-            #[tree(rename = "deep")]
+            #[param(rename = "deep")]
             deeper: DeepSubTree,
         }
 

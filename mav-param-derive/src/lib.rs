@@ -4,6 +4,21 @@ mod derive_enum;
 mod derive_node;
 mod derive_tree;
 
+/// Derives the `Node` trait for a newtype struct.
+///
+/// This macro generates an implementation that delegates to the inner type's `Node`
+/// implementation. It only works on newtype structs (structs with a single unnamed field).
+///
+/// Example:
+/// ```
+/// #[derive(Node)]
+/// struct MyWrapper(u8);
+/// ```
+#[proc_macro_derive(Node)]
+pub fn node_derive(input: TokenStream) -> TokenStream {
+    derive_node::node_derive(input)
+}
+
 /// Derives the `Enum` trait for an enum type.
 ///
 /// This macro automatically implements the `Enum` and `Node` traits for enums, enabling
@@ -21,24 +36,9 @@ mod derive_tree;
 ///     Boat(BoatConfig) = 2,
 /// }
 /// ```
-#[proc_macro_derive(Enum, attributes(enum_variant))]
+#[proc_macro_derive(Enum, attributes(param))]
 pub fn enum_derive(input: TokenStream) -> TokenStream {
     derive_enum::enum_derive(input)
-}
-
-/// Derives the `Node` trait for a newtype struct.
-///
-/// This macro generates an implementation that delegates to the inner type's `Node`
-/// implementation. It only works on newtype structs (structs with a single unnamed field).
-///
-/// Example:
-/// ```
-/// #[derive(Node)]
-/// struct MyWrapper(u8);
-/// ```
-#[proc_macro_derive(Node)]
-pub fn node_derive(input: TokenStream) -> TokenStream {
-    derive_node::node_derive(input)
 }
 
 /// Derives the `Tree` trait for a struct.
@@ -48,7 +48,7 @@ pub fn node_derive(input: TokenStream) -> TokenStream {
 /// in the parameter tree.
 ///
 /// Use the `#[tree(rename = "name")]` attribute to customize field names in the tree.
-#[proc_macro_derive(Tree, attributes(tree))]
+#[proc_macro_derive(Tree, attributes(param))]
 pub fn tree_derive(input: TokenStream) -> TokenStream {
     derive_tree::tree_derive(input)
 }

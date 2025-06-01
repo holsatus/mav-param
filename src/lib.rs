@@ -185,10 +185,16 @@ mod tests {
             var: Union,
         }
 
+        fn def() -> Inner {
+            Inner { i1: 2, i2: 4, i3: 8}
+        }
+
         #[repr(u8)]
         #[derive(mav_param::Enum)]
         enum Union {
+            #[param(default = def())]
             Var1(Inner) = 0,
+            #[param(default = 5.0)]
             Var2(f32) = 1,
         }
 
@@ -220,7 +226,7 @@ mod tests {
         assert_eq!(set_value(&mut test, ".var.#", crate::Value::U8(0)), Some(()));
 
         assert_eq!(get_value(&test, ".var.#"), Some(crate::Value::U8(0)));
-        assert_eq!(get_value(&test, ".var.i1"), Some(crate::Value::U8(0)));
+        assert_eq!(get_value(&test, ".var.i1"), Some(crate::Value::U8(2)));
     }
 
 
@@ -340,9 +346,9 @@ mod tests {
     fn basic_derive_renamed() {
         #[derive(Tree, Default)]
         struct NestedParams {
-            #[tree(rename = "e1")]
+            #[param(rename = "e1")]
             entry1: u8,
-            #[tree(rename = "e2")]
+            #[param(rename = "e2")]
             entry2: u8,
         }
 
@@ -382,7 +388,7 @@ mod tests {
         struct TestParams {
             entry1: u8,
             entry2: u8,
-            #[tree(condition = "self.entry1 != self.entry2")]
+            #[param(condition = "self.entry1 != self.entry2")]
             nest: NestedParams,
         }
 
@@ -426,8 +432,8 @@ mod tests {
         struct TestParams {
             entry1: u8,
             entry2: u8,
-            #[tree(rename = "n")]
-            #[tree(condition = "self.entry1 != self.entry2")]
+            #[param(rename = "n")]
+            #[param(condition = "self.entry1 != self.entry2")]
             nest: NestedParams,
         }
 
