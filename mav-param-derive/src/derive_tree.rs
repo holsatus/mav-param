@@ -107,7 +107,7 @@ fn generate_named_fields_impl(
                 }
             }
 
-            fn entries_full_list(&self) -> &'static [&'static str] {
+            fn entries(&self) -> &'static [&'static str] {
                 &[#(#entry_strings),*]
             }
         }

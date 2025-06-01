@@ -40,7 +40,7 @@ impl<'a, T0: Node<'a>> Tree<'a> for (T0,) {
         }
     }
 
-    fn entries_full_list(&self) -> &'static [&'static str] {
+    fn entries(&self) -> &'static [&'static str] {
         &["0"]
     }
 }
@@ -62,7 +62,7 @@ impl<'a, T0: Node<'a>, T1: Node<'a>> Tree<'a> for (T0, T1) {
         }
     }
 
-    fn entries_full_list(&self) -> &'static [&'static str] {
+    fn entries(&self) -> &'static [&'static str] {
         &["0", "1"]
     }
 }
@@ -86,7 +86,7 @@ impl<'a, T0: Node<'a>, T1: Node<'a>, T2: Node<'a>> Tree<'a> for (T0, T1, T2) {
         }
     }
 
-    fn entries_full_list(&self) -> &'static [&'static str] {
+    fn entries(&self) -> &'static [&'static str] {
         &["0", "1", "2"]
     }
 }
@@ -112,7 +112,7 @@ impl<'a, T0: Node<'a>, T1: Node<'a>, T2: Node<'a>, T3: Node<'a>> Tree<'a> for (T
         }
     }
 
-    fn entries_full_list(&self) -> &'static [&'static str] {
+    fn entries(&self) -> &'static [&'static str] {
         &["0", "1", "2", "3"]
     }
 }
@@ -142,7 +142,7 @@ impl<'a, T0: Node<'a>, T1: Node<'a>, T2: Node<'a>, T3: Node<'a>, T4: Node<'a>> T
         }
     }
 
-    fn entries_full_list(&self) -> &'static [&'static str] {
+    fn entries(&self) -> &'static [&'static str] {
         &["0", "1", "2", "3", "4"]
     }
 }
@@ -174,7 +174,7 @@ impl<'a, T0: Node<'a>, T1: Node<'a>, T2: Node<'a>, T3: Node<'a>, T4: Node<'a>, T
         }
     }
 
-    fn entries_full_list(&self) -> &'static [&'static str] {
+    fn entries(&self) -> &'static [&'static str] {
         &["0", "1", "2", "3", "4", "5"]
     }
 }
@@ -216,7 +216,7 @@ impl<
         }
     }
 
-    fn entries_full_list(&self) -> &'static [&'static str] {
+    fn entries(&self) -> &'static [&'static str] {
         &["0", "1", "2", "3", "4", "5", "6"]
     }
 }
@@ -261,7 +261,7 @@ impl<
         }
     }
 
-    fn entries_full_list(&self) -> &'static [&'static str] {
+    fn entries(&self) -> &'static [&'static str] {
         &["0", "1", "2", "3", "4", "5", "6", "7"]
     }
 }
@@ -309,7 +309,7 @@ impl<
         }
     }
 
-    fn entries_full_list(&self) -> &'static [&'static str] {
+    fn entries(&self) -> &'static [&'static str] {
         &["0", "1", "2", "3", "4", "5", "6", "7", "8"]
     }
 }
@@ -360,7 +360,7 @@ impl<
         }
     }
 
-    fn entries_full_list(&self) -> &'static [&'static str] {
+    fn entries(&self) -> &'static [&'static str] {
         &["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
     }
 }

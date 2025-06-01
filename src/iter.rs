@@ -3,7 +3,7 @@ use heapless::Vec;
 use crate::{Error, NodeRef, Parameter};
 
 /// Maximum "recursion" depth
-pub const STACK_DEPTH: usize = 5;
+pub const MAX_STACK_DEPTH: usize = 5;
 
 /// The state of a single "level" of tree iteration
 struct Segment<'a> {
@@ -22,7 +22,7 @@ pub struct ParamIter<'a> {
     // Single path buffer that's modified during traversal
     ident_buffer: crate::ident::Ident,
     // Stack stores only minimal data for traversal state
-    stack: Vec<Segment<'a>, STACK_DEPTH>,
+    stack: Vec<Segment<'a>, MAX_STACK_DEPTH>,
 }
 
 impl<'a> ParamIter<'a> {
@@ -63,7 +63,7 @@ impl Iterator for ParamIter<'_> {
                     continue;
                 }
                 NodeRef::Tree(tree) => {
-                    let entries = tree.entries_full_list();
+                    let entries = tree.entries();
 
                     // Check if we've processed all entries in the current tree
                     if segment.index >= entries.len() {
@@ -105,7 +105,7 @@ impl Iterator for ParamIter<'_> {
                 NodeRef::Enum(union) => {
                     let entry_name = "#";
 
-                    // Add this segment to the path (temporarily)
+                    // Add this enum segment to the path (temporarily)
                     if !self.ident_buffer.push_entry(entry_name) {
                         return Some(Err(Error::PathTooLong(
                             self.ident_buffer.clone(),
@@ -125,11 +125,11 @@ impl Iterator for ParamIter<'_> {
                     // Return the discriminant as the value
                     return Some(Ok(Parameter {
                         ident,
-                        value: union.discriminant(),
+                        value: union.get(),
                     }));
                 }
                 // Maybe just handle it like
-                NodeRef::Value(value) => {
+                NodeRef::Leaf(value) => {
                     // Create a copy of the current path for the return value
                     let ident = self.ident_buffer.clone();
 
@@ -137,7 +137,10 @@ impl Iterator for ParamIter<'_> {
                     self.ident_buffer.pop_entry();
                     self.stack.pop();
 
-                    return Some(Ok(Parameter { ident, value }));
+                    return Some(Ok(Parameter {
+                        ident,
+                        value: value.get(),
+                    }));
                 }
             }
         }
@@ -146,9 +149,9 @@ impl Iterator for ParamIter<'_> {
 
 #[cfg(test)]
 mod tests {
-    use crate as mav_param;
+    use crate::{self as mav_param, Value};
     use mav_param::Error;
-    use mav_param::{Tree, Value, param_iter_named};
+    use mav_param::{Tree, param_iter_named};
 
     #[test]
     fn basic_iteration() {
