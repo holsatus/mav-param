@@ -19,12 +19,12 @@ pub fn node_derive(input: TokenStream) -> TokenStream {
 
     // Delegate to the Node trait implementation of the inner type
     quote! {
-        impl mav_param::Node for #name {
-            fn node_ref(&self) -> mav_param::NodeRef<'_> {
+        impl <'a> mav_param::Node<'a> for #name {
+            fn node_ref(&self) -> mav_param::NodeRef<'a> {
                 self.0.node_ref()
             }
 
-            fn node_mut(&mut self) -> mav_param::NodeMut<'_> {
+            fn node_mut(&mut self) -> mav_param::NodeMut<'a> {
                 self.0.node_mut()
             }
         }
