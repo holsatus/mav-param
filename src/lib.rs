@@ -95,7 +95,7 @@ pub trait Node<'a>: Send + Sync + 'a {
 ///
 /// Note: This iterator yields `Result`, since some parameter identifiers
 /// may turn out to be longer than 16 bytes, or if structs are nested too deeply.
-pub fn param_iter_named<'a>(node: &'a dyn Node<'a>, name: &str) -> iter::ParamIter<'a> {
+pub fn param_iter_named<'a>(node: &dyn Node<'a>, name: &str) -> iter::ParamIter<'a> {
     iter::ParamIter::new(node.node_ref(), Some(name))
 }
 
@@ -103,12 +103,12 @@ pub fn param_iter_named<'a>(node: &'a dyn Node<'a>, name: &str) -> iter::ParamIt
 ///
 /// Note: This iterator yields `Result`, since some parameter identifiers
 /// may turn out to be longer than 16 bytes, or if structs are nested too deeply.
-pub fn param_iter<'a>(node: &'a dyn Node<'a>) -> iter::ParamIter<'a> {
+pub fn param_iter<'a>(node: &dyn Node<'a>) -> iter::ParamIter<'a> {
     iter::ParamIter::new(node.node_ref(), None)
 }
 
 /// Returns the value for the given identifier
-pub fn get_value<'a>(tree_ref: &'a dyn Node<'a>, ident: &str) -> Option<value::Value> {
+pub fn get_value(tree_ref: &dyn Node<'_>, ident: &str) -> Option<value::Value> {
     let mut segments = ident.trim_start_matches('.').split('.');
     let mut work_node = tree_ref.node_ref();
     let mut next = segments.next();
@@ -140,7 +140,7 @@ pub fn get_value<'a>(tree_ref: &'a dyn Node<'a>, ident: &str) -> Option<value::V
 }
 
 /// Returns a mutable reference to the value for the given identifier
-pub fn set_value<'a>(tree_mut: &'a mut dyn Node<'a>, ident: &str, value: Value) -> Option<()> {
+pub fn set_value(tree_mut: &mut dyn Node<'_>, ident: &str, value: Value) -> Option<()> {
     let mut segments = ident.trim_start_matches('.').split('.');
     let mut work_node = tree_mut.node_mut();
     let mut next = segments.next();
