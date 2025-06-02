@@ -3,7 +3,7 @@ use heapless::Vec;
 use crate::{Error, NodeRef, Parameter};
 
 /// Maximum "recursion" depth
-pub const MAX_STACK_DEPTH: usize = 5;
+pub const MAX_STACK_DEPTH: usize = 6;
 
 /// The state of a single "level" of tree iteration
 struct Segment<'a> {
@@ -46,8 +46,6 @@ impl<'a> ParamIter<'a> {
         }
     }
 }
-
-impl ParamIter<'_> {}
 
 impl Iterator for ParamIter<'_> {
     type Item = Result<Parameter, Error>;
@@ -96,6 +94,7 @@ impl Iterator for ParamIter<'_> {
                     }
 
                     if self.stack.push(Segment { node_ref, index: 0 }).is_err() {
+                        self.ident_buffer.pop_entry();
                         return Some(Err(Error::DepthTooBig(
                             self.ident_buffer.clone(),
                             entry_name,
@@ -120,7 +119,10 @@ impl Iterator for ParamIter<'_> {
                     self.ident_buffer.pop_entry();
 
                     // Set the current node as the active variant
-                    segment.node_ref = union.active_node_ref();
+                    *segment = Segment {
+                        node_ref: union.active_node_ref(),
+                        index: 0,
+                    };
 
                     // Return the discriminant as the value
                     return Some(Ok(Parameter {

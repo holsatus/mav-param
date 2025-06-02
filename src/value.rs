@@ -9,7 +9,7 @@ pub trait Floaty: Leaf {
 }
 
 /// Allows for getting and setting the inner [`Value`] of a [`Leaf`] node.
-pub trait Leaf {
+pub trait Leaf: crate::Node {
     fn get(&self) -> Value;
     fn set(&mut self, val: Value) -> bool;
 }
