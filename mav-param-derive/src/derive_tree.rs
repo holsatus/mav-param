@@ -36,8 +36,8 @@ fn generate_named_fields_impl(
             let field_name_str = field_name.to_string();
 
             // Check for rename attribute
-            let renamed = find_rename_attr(&field.attrs);
-            let condition = find_condition_attr(&field.attrs);
+            let renamed = get_rename_attr(&field.attrs);
+            let condition = get_condition_attr(&field.attrs);
             let param_name = renamed.unwrap_or_else(|| field_name_str.clone());
 
             (field_name, condition, param_name)
@@ -120,11 +120,9 @@ fn generate_named_fields_impl(
     }
 }
 
-// Updated function to extract rename attribute using syn 2.0 API
-fn find_rename_attr(attrs: &[Attribute]) -> Option<String> {
+fn get_rename_attr(attrs: &[Attribute]) -> Option<String> {
     for attr in attrs {
         if attr.path().is_ident("param") {
-            // Use the parse_args method for more reliable parsing in syn 2.0
             let meta = match attr.parse_args::<MetaNameValue>() {
                 Ok(meta) => meta,
                 Err(_) => continue,
@@ -144,11 +142,9 @@ fn find_rename_attr(attrs: &[Attribute]) -> Option<String> {
     None
 }
 
-// Updated function to extract rename attribute using syn 2.0 API
-fn find_condition_attr(attrs: &[Attribute]) -> Option<String> {
+fn get_condition_attr(attrs: &[Attribute]) -> Option<String> {
     for attr in attrs {
         if attr.path().is_ident("param") {
-            // Use the parse_args method for more reliable parsing in syn 2.0
             let meta = match attr.parse_args::<MetaNameValue>() {
                 Ok(meta) => meta,
                 Err(_) => continue,

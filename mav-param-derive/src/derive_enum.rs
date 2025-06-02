@@ -29,7 +29,7 @@ pub fn enum_derive(input: TokenStream) -> TokenStream {
     for variant in variants {
         
         let name = &variant.ident;
-        let value_variant = get_repr_value(&input.attrs);
+        let value_variant = get_repr_mav_param_value(&input.attrs);
 
         let variant_type = match &variant.fields {
             Fields::Unit => VariantType::Unit,
@@ -75,7 +75,7 @@ pub fn enum_derive(input: TokenStream) -> TokenStream {
             },
         });
 
-        set_discriminant.push(match (&variant_type, find_default_attr(&variant.attrs)) {
+        set_discriminant.push(match (&variant_type, get_default_attr(&variant.attrs)) {
             (VariantType::Unit, _) => quote! { 
                 #value_variant(#discriminant_tokens) => *self = Self::#name, 
             },
@@ -154,14 +154,12 @@ fn get_discriminant_literal(variant: &Variant) -> Option<LitInt> {
 }
 
 // Helper function to extract the enum representation type
-fn get_repr_value(attrs: &[Attribute]) -> proc_macro2::TokenStream {
+fn get_repr_mav_param_value(attrs: &[Attribute]) -> proc_macro2::TokenStream {
     for attr in attrs {
         if attr.path().is_ident("repr") {
-            // Use parse_args_with to parse the content
             if let Ok(content) = attr.parse_args_with(|parser: &ParseBuffer<'_>| {
                 Ok(parser.parse::<Ident>()?.to_string())
             }) {
-                // Return the corresponding Value variant
                 return match content.as_str() {
                     "u8" => quote! { mav_param::Value::U8 },
                     "i8" => quote! { mav_param::Value::I8 },
@@ -175,15 +173,12 @@ fn get_repr_value(attrs: &[Attribute]) -> proc_macro2::TokenStream {
         }
     }
     
-    // If we got here, no repr attribute was found
-    panic!("Enum must have a #[repr(inttype)] attribute specifying a mav_param::Value variant")
+    panic!("Enum must have a #[repr(inttype)] attribute")
 }
 
-// Updated function to extract rename attribute using syn 2.0 API
-fn find_default_attr(attrs: &[Attribute]) -> Option<proc_macro2::TokenStream> {
+fn get_default_attr(attrs: &[Attribute]) -> Option<proc_macro2::TokenStream> {
     for attr in attrs {
         if attr.path().is_ident("param") {
-            // Use the parse_args method for more reliable parsing in syn 2.0
             let meta = match attr.parse_args::<MetaNameValue>() {
                 Ok(meta) => meta,
                 Err(_) => continue,
