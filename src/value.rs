@@ -1,23 +1,28 @@
-///  Primitives which can be represented as a "float" in a Mavlink parameter
+/// Primitives which can be represented as a float in a Mavlink parameter
 ///
 /// This trait enables conversion between MAVLink parameter values (which are transmitted
 /// as IEEE 754 floats) and their actual primitive types through bytewise reinterpretation
 /// rather than numeric conversion.
-pub trait Primitive {
+pub trait Floaty: Leaf {
     fn from_bytewise(val: f32) -> Self;
     fn into_bytewise(self) -> f32;
-    fn into_value(self) -> Value;
+}
+
+/// Allows for getting and setting the inner [`Value`] of a [`Leaf`] node.
+pub trait Leaf: crate::Node {
+    fn get(&self) -> Value;
+    fn set(&mut self, val: Value) -> bool;
 }
 
 /// Converts the float-encoded value into the correct primitive type.
 #[cfg(target_endian = "little")]
-pub fn from_bytewise<F: Primitive>(val: f32) -> F {
+pub fn from_bytewise<F: Floaty>(val: f32) -> F {
     F::from_bytewise(val)
 }
 
 /// Converts the primite value into the float-encoded equivalent.
 #[cfg(target_endian = "little")]
-pub fn into_bytewise<F: Primitive>(val: F) -> f32 {
+pub fn into_bytewise<F: Floaty>(val: F) -> f32 {
     F::into_bytewise(val)
 }
 
@@ -51,7 +56,7 @@ macro_rules! impl_primitive {
             $( $type: $type, )+
         }
 
-        $( impl Primitive for $type {
+        $( impl Floaty for $type {
             #[inline(always)]
             #[cfg(target_endian = "little")]
             fn from_bytewise(val: f32) -> $type {
@@ -63,9 +68,30 @@ macro_rules! impl_primitive {
             fn into_bytewise(self) -> f32 {
                 unsafe { Bytewise { $type: self }.f32 }
             }
+        } )+
 
-            fn into_value(self) -> Value {
-                Value::$variant(self)
+        $( impl Leaf for $type {
+            fn get(&self) -> Value {
+                Value::$variant(*self)
+            }
+
+            fn set(&mut self, val: Value) -> bool {
+                if let Value::$variant(val) = val {
+                    *self = val;
+                    true
+                } else {
+                    false
+                }
+            }
+        } )+
+
+        $( impl super::Node for $type {
+            fn node_ref(&self) -> super::NodeRef<'_> {
+                super::NodeRef::Leaf(self)
+            }
+
+            fn node_mut(&mut self) -> super::NodeMut<'_> {
+                super::NodeMut::Leaf(self)
             }
         } )+
 
@@ -83,32 +109,6 @@ macro_rules! impl_primitive {
                 match self {
                     $( Value::$variant(v) => v.into_bytewise(), )+
                 }
-            }
-        }
-
-        impl ValueMut<'_> {
-            /// Obtain an owned version of this value.
-            pub fn owned(&self) -> Value {
-                match &self {
-                    $( ValueMut::$variant(vm) => vm.into_value(), )+
-                }
-            }
-
-            /// Get the Mavlink-compatible bytewise representation of this [`ValueMut`]
-            #[cfg(target_endian = "little")]
-            pub fn into_bytewise(&self) -> f32 {
-                self.owned().into_bytewise()
-            }
-
-            /// Attempt to assign another [`Value`] to this [`ValueMut`] without changing its type.
-            ///
-            /// If the types matched this functions returns `true`, otherwise `false`.
-            pub fn try_assign(&mut self, other: Value) -> bool {
-                match (self, other) {
-                    $( (ValueMut::$variant(vm), Value::$variant(v)) => **vm = v, )+
-                    _ => return false, // Type mismatch
-                }
-                true
             }
         }
     };
