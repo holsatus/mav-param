@@ -48,15 +48,15 @@ macro_rules! impl_tree_array {
     };
 }
 
-impl_tree_array! {1 => 0}
-impl_tree_array! {2 => 0, 1}
-impl_tree_array! {3 => 0, 1, 2}
-impl_tree_array! {4 => 0, 1, 2, 3}
-impl_tree_array! {5 => 0, 1, 2, 3, 4}
-impl_tree_array! {6 => 0, 1, 2, 3, 4, 5}
-impl_tree_array! {7 => 0, 1, 2, 3, 4, 5, 6}
-impl_tree_array! {8 => 0, 1, 2, 3, 4, 5, 6, 7}
-impl_tree_array! {9 => 0, 1, 2, 3, 4, 5, 6, 7, 8}
+impl_tree_array! {1  => 0}
+impl_tree_array! {2  => 0, 1}
+impl_tree_array! {3  => 0, 1, 2}
+impl_tree_array! {4  => 0, 1, 2, 3}
+impl_tree_array! {5  => 0, 1, 2, 3, 4}
+impl_tree_array! {6  => 0, 1, 2, 3, 4, 5}
+impl_tree_array! {7  => 0, 1, 2, 3, 4, 5, 6}
+impl_tree_array! {8  => 0, 1, 2, 3, 4, 5, 6, 7}
+impl_tree_array! {9  => 0, 1, 2, 3, 4, 5, 6, 7, 8}
 impl_tree_array! {10 => 0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
 impl_tree_array! {11 => 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
 impl_tree_array! {12 => 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}

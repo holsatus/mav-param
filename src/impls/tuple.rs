@@ -4,7 +4,7 @@ macro_rules! impl_tree_tuple {
     ( $(
         $type:ident; $number:tt
     ),* $(,)?) => {
-        
+
         impl<$($type: Node),+> Node for ( $($type,)+ ) {
             fn node_ref(&self) -> NodeRef<'_> {
                 NodeRef::Tree(self)
@@ -50,13 +50,13 @@ macro_rules! impl_tree_tuple {
     };
 }
 
-impl_tree_tuple!{T0; 0}
-impl_tree_tuple!{T0; 0, T1; 1}
-impl_tree_tuple!{T0; 0, T1; 1, T2; 2}
-impl_tree_tuple!{T0; 0, T1; 1, T2; 2, T3; 3}
-impl_tree_tuple!{T0; 0, T1; 1, T2; 2, T3; 3, T4; 4}
-impl_tree_tuple!{T0; 0, T1; 1, T2; 2, T3; 3, T4; 4, T5; 5}
-impl_tree_tuple!{T0; 0, T1; 1, T2; 2, T3; 3, T4; 4, T5; 5, T6; 6}
-impl_tree_tuple!{T0; 0, T1; 1, T2; 2, T3; 3, T4; 4, T5; 5, T6; 6, T7; 7}
-impl_tree_tuple!{T0; 0, T1; 1, T2; 2, T3; 3, T4; 4, T5; 5, T6; 6, T7; 7, T8; 8}
-impl_tree_tuple!{T0; 0, T1; 1, T2; 2, T3; 3, T4; 4, T5; 5, T6; 6, T7; 7, T8; 8, T9; 9}
+impl_tree_tuple! {T0; 0}
+impl_tree_tuple! {T0; 0, T1; 1}
+impl_tree_tuple! {T0; 0, T1; 1, T2; 2}
+impl_tree_tuple! {T0; 0, T1; 1, T2; 2, T3; 3}
+impl_tree_tuple! {T0; 0, T1; 1, T2; 2, T3; 3, T4; 4}
+impl_tree_tuple! {T0; 0, T1; 1, T2; 2, T3; 3, T4; 4, T5; 5}
+impl_tree_tuple! {T0; 0, T1; 1, T2; 2, T3; 3, T4; 4, T5; 5, T6; 6}
+impl_tree_tuple! {T0; 0, T1; 1, T2; 2, T3; 3, T4; 4, T5; 5, T6; 6, T7; 7}
+impl_tree_tuple! {T0; 0, T1; 1, T2; 2, T3; 3, T4; 4, T5; 5, T6; 6, T7; 7, T8; 8}
+impl_tree_tuple! {T0; 0, T1; 1, T2; 2, T3; 3, T4; 4, T5; 5, T6; 6, T7; 7, T8; 8, T9; 9}
