@@ -35,15 +35,15 @@ impl<'a, T: Node + Default> Enum<'a> for Option<T> {
 
     fn active_node_ref(&'a self) -> NodeRef<'a> {
         match self {
-            Some(inner) => inner.node_ref(),
             None => NodeRef::None,
+            Some(inner) => inner.node_ref(),
         }
     }
 
     fn active_node_mut(&'a mut self) -> NodeMut<'a> {
         match self {
-            Some(inner) => inner.node_mut(),
             None => NodeMut::None,
+            Some(inner) => inner.node_mut(),
         }
     }
 }

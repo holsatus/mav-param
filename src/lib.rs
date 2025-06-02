@@ -114,15 +114,14 @@ pub fn get_value(tree_ref: &dyn Node, ident: &str) -> Option<value::Value> {
     let mut next = segments.next();
 
     loop {
-
         match work_node {
             NodeRef::None => return None,
             NodeRef::Tree(tree_ref) => {
-                let segment = next.take().or_else(||segments.next())?;
+                let segment = next.take().or_else(|| segments.next())?;
                 work_node = tree_ref.get_ref(segment)?;
-            },
+            }
             NodeRef::Enum(enum_ref) => {
-                let segment = next.take().or_else(||segments.next());
+                let segment = next.take().or_else(|| segments.next());
                 work_node = if segment == Some("#") {
                     NodeRef::Leaf(enum_ref)
                 } else {
@@ -131,10 +130,8 @@ pub fn get_value(tree_ref: &dyn Node, ident: &str) -> Option<value::Value> {
                 };
 
                 continue;
-            },
-            NodeRef::Leaf(leaf_ref) => {
-                return Some(leaf_ref.get())
-            },
+            }
+            NodeRef::Leaf(leaf_ref) => return Some(leaf_ref.get()),
         }
     }
 }
@@ -146,15 +143,14 @@ pub fn set_value(tree_mut: &mut dyn Node, ident: &str, value: Value) -> Option<(
     let mut next = segments.next();
 
     loop {
-
         match work_node {
             NodeMut::None => return None,
             NodeMut::Tree(tree_ref) => {
-                let segment = next.take().or_else(||segments.next())?;
+                let segment = next.take().or_else(|| segments.next())?;
                 work_node = tree_ref.get_mut(segment)?;
-            },
+            }
             NodeMut::Enum(enum_ref) => {
-                let segment = next.take().or_else(||segments.next());
+                let segment = next.take().or_else(|| segments.next());
                 work_node = if segment == Some("#") {
                     NodeMut::Leaf(enum_ref)
                 } else {
@@ -163,10 +159,8 @@ pub fn set_value(tree_mut: &mut dyn Node, ident: &str, value: Value) -> Option<(
                 };
 
                 continue;
-            },
-            NodeMut::Leaf(leaf_ref) => {
-                return leaf_ref.set(value).then(||())
-            },
+            }
+            NodeMut::Leaf(leaf_ref) => return leaf_ref.set(value).then(|| ()),
         }
     }
 }
@@ -186,7 +180,11 @@ mod tests {
         }
 
         fn def() -> Inner {
-            Inner { i1: 2, i2: 4, i3: 8}
+            Inner {
+                i1: 2,
+                i2: 4,
+                i3: 8,
+            }
         }
 
         #[repr(u8)]
@@ -223,7 +221,10 @@ mod tests {
         assert_eq!(get_value(&test, ".var"), Some(crate::Value::F32(5.0)));
 
         // Setting the discriminant will set the variant to default
-        assert_eq!(set_value(&mut test, ".var.#", crate::Value::U8(0)), Some(()));
+        assert_eq!(
+            set_value(&mut test, ".var.#", crate::Value::U8(0)),
+            Some(())
+        );
 
         assert_eq!(get_value(&test, ".var.#"), Some(crate::Value::U8(0)));
         assert_eq!(get_value(&test, ".var.i1"), Some(crate::Value::U8(2)));
