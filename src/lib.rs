@@ -12,6 +12,7 @@ pub use ident::Ident;
 pub use value::{Leaf, Value};
 
 #[derive(Debug, PartialEq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum Error {
     /// While iterating a tree, the resulting
     /// identifier would exceed 16 bytes
