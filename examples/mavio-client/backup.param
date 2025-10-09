@@ -1,0 +1,55 @@
+[mav]
+timeout_ms: u16 = 5000
+id.sys: u8 = 1
+id.com: u8 = 1
+flags: u8 = 7
+
+[rate]
+rol.p: f32 = 20
+rol.i: f32 = 1
+rol.d: f32 = 1
+rol.cfg: u8 = 7
+rol.dtau: f32 = 0.001
+rol.pred: f32 = 0.04
+rol.comp: f32 = 0.01
+pit.p: f32 = 20
+pit.i: f32 = 1
+pit.d: f32 = 1
+pit.cfg: u8 = 7
+pit.dtau: f32 = 0.001
+pit.pred: f32 = 0.04
+pit.comp: f32 = 0.01
+yaw.p: f32 = 20
+yaw.i: f32 = 1
+yaw.d: f32 = 1
+yaw.cfg: u8 = 7
+yaw.dtau: f32 = 0.001
+yaw.pred: f32 = 0.04
+yaw.comp: f32 = 0.01
+ref_slew: f32 = 300
+ref_lp: f32 = 0.004
+
+[angl]
+rol.p: f32 = 20
+rol.i: f32 = 1
+rol.d: f32 = 1
+rol.cfg: u8 = 7
+rol.dtau: f32 = 0.001
+rol.pred: f32 = 0.04
+rol.comp: f32 = 0.01
+pit.p: f32 = 20
+pit.i: f32 = 1
+pit.d: f32 = 1
+pit.cfg: u8 = 7
+pit.dtau: f32 = 0.001
+pit.pred: f32 = 0.04
+pit.comp: f32 = 0.01
+yaw.p: f32 = 20
+yaw.i: f32 = 1
+yaw.d: f32 = 1
+yaw.cfg: u8 = 7
+yaw.dtau: f32 = 0.001
+yaw.pred: f32 = 0.04
+yaw.comp: f32 = 0.01
+ref_slew: f32 = 300
+ref_lp: f32 = 0.004
