@@ -63,7 +63,7 @@ pub trait Tree<'a>: Node {
     /// List all the entries (child names) at this level of the tree.
     ///
     /// Note: This will also list conditionally disabled entries.
-    /// To check whether an entry is avialable, ensure the value
+    /// To check whether an entry is available, ensure the value
     /// of [`Tree::get_ref`] satisfies `.is_some()`.
     fn entries(&self) -> &'static [&'static str];
 }

@@ -9,9 +9,12 @@ use mavio::{
 };
 
 use tokio::{
-    io::{ReadHalf, WriteHalf}, net::TcpStream, sync::{
-        mpsc::{Receiver, Sender}, RwLock
-    }
+    io::{ReadHalf, WriteHalf},
+    net::TcpStream,
+    sync::{
+        RwLock,
+        mpsc::{Receiver, Sender},
+    },
 };
 
 // A nested struct of parameters
@@ -20,7 +23,7 @@ pub struct Parameters {
     mav: MavlinkParameters,
     rate: ControlParameters,
     angl: ControlParameters,
-    rc: RcMapParameters
+    rc: RcMapParameters,
 }
 
 // A nested struct of parameters
@@ -222,9 +225,7 @@ impl Default for RcMapParameters {
             },
         ]);
 
-        RcMapParameters {
-            channel: channels,
-        }
+        RcMapParameters { channel: channels }
     }
 }
 
@@ -277,10 +278,7 @@ pub async fn reader_half(
                 let params = params.read().await;
                 let param_count = mav_param::param_iter(&*params).count();
 
-                for (param_index, param) in mav_param::param_iter(&*params)
-                    .enumerate()
-                {
-
+                for (param_index, param) in mav_param::param_iter(&*params).enumerate() {
                     let param = param.unwrap();
                     println!("server: [info] Sending parameter: {param:?}");
 
@@ -294,12 +292,13 @@ pub async fn reader_half(
                         param_index: param_index as u16,
                     };
 
-                    _ = tx.send((
-                        message.encode(mavio::prelude::MavLinkVersion::V2).unwrap(),
-                        m::ParamValue::ID,
-                        m::ParamValue::crc_extra(),
-                    ))
-                    .await;
+                    _ = tx
+                        .send((
+                            message.encode(mavio::prelude::MavLinkVersion::V2).unwrap(),
+                            m::ParamValue::ID,
+                            m::ParamValue::crc_extra(),
+                        ))
+                        .await;
                 }
                 println!("server: [info] Done sending {} parameters", param_count);
             }
@@ -317,7 +316,8 @@ pub async fn reader_half(
 
                 let mut param_writer = params.write().await;
 
-                let Some(value) = value_from_bytewise(param_set.param_value, param_set.param_type) else {
+                let Some(value) = value_from_bytewise(param_set.param_value, param_set.param_type)
+                else {
                     eprintln!("server: [error] ");
                     continue;
                 };
@@ -347,12 +347,13 @@ pub async fn reader_half(
                     param_index: u16::MAX,
                 };
 
-                _ = tx.send((
-                    message.encode(mavio::prelude::MavLinkVersion::V2).unwrap(),
-                    m::ParamValue::ID,
-                    m::ParamValue::crc_extra(),
-                ))
-                .await;
+                _ = tx
+                    .send((
+                        message.encode(mavio::prelude::MavLinkVersion::V2).unwrap(),
+                        m::ParamValue::ID,
+                        m::ParamValue::crc_extra(),
+                    ))
+                    .await;
             }
             m::CommandLong::ID => {
                 let command = match m::CommandLong::try_from(frame.payload()) {
@@ -376,12 +377,13 @@ pub async fn reader_half(
                         target_component: 1,
                     };
 
-                    _ = tx.send((
-                        message.encode(mavio::prelude::MavLinkVersion::V2).unwrap(),
-                        m::CommandAck::ID,
-                        m::CommandAck::crc_extra(),
-                    ))
-                    .await;
+                    _ = tx
+                        .send((
+                            message.encode(mavio::prelude::MavLinkVersion::V2).unwrap(),
+                            m::CommandAck::ID,
+                            m::CommandAck::crc_extra(),
+                        ))
+                        .await;
                 };
 
                 let command_unsupported = async |command| {
@@ -394,12 +396,13 @@ pub async fn reader_half(
                         target_component: 1,
                     };
 
-                    _ = tx.send((
-                        message.encode(mavio::prelude::MavLinkVersion::V2).unwrap(),
-                        m::CommandAck::ID,
-                        m::CommandAck::crc_extra(),
-                    ))
-                    .await;
+                    _ = tx
+                        .send((
+                            message.encode(mavio::prelude::MavLinkVersion::V2).unwrap(),
+                            m::CommandAck::ID,
+                            m::CommandAck::crc_extra(),
+                        ))
+                        .await;
                 };
 
                 match command.command {
@@ -407,12 +410,13 @@ pub async fn reader_half(
                         m::AutopilotVersion::ID => {
                             let message = m::AutopilotVersion::default();
 
-                            _ = tx.send((
-                                message.encode(mavio::prelude::MavLinkVersion::V2).unwrap(),
-                                m::AutopilotVersion::ID,
-                                m::AutopilotVersion::crc_extra(),
-                            ))
-                            .await;
+                            _ = tx
+                                .send((
+                                    message.encode(mavio::prelude::MavLinkVersion::V2).unwrap(),
+                                    m::AutopilotVersion::ID,
+                                    m::AutopilotVersion::crc_extra(),
+                                ))
+                                .await;
 
                             command_accept(command.command).await;
 
@@ -424,12 +428,13 @@ pub async fn reader_half(
                             message.min_version = 200;
                             message.max_version = 200;
 
-                            _ = tx.send((
-                                message.encode(mavio::prelude::MavLinkVersion::V2).unwrap(),
-                                m::ProtocolVersion::ID,
-                                m::ProtocolVersion::crc_extra(),
-                            ))
-                            .await;
+                            _ = tx
+                                .send((
+                                    message.encode(mavio::prelude::MavLinkVersion::V2).unwrap(),
+                                    m::ProtocolVersion::ID,
+                                    m::ProtocolVersion::crc_extra(),
+                                ))
+                                .await;
 
                             command_accept(command.command).await;
 

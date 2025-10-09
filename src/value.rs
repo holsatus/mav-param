@@ -20,7 +20,7 @@ pub fn from_bytewise<F: Floaty>(val: f32) -> F {
     F::from_bytewise(val)
 }
 
-/// Converts the primite value into the float-encoded equivalent.
+/// Converts the primitive value into the float-encoded equivalent.
 #[cfg(target_endian = "little")]
 pub fn into_bytewise<F: Floaty>(val: F) -> f32 {
     F::into_bytewise(val)

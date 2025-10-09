@@ -103,7 +103,8 @@ pub async fn reader_half(reader: ReadHalf<TcpStream>, parameters: ArcParameters)
                 };
 
                 let ident = mav_param::Ident::try_from(&message.param_id).unwrap();
-                let Some(value) = value_from_bytewise(message.param_value, message.param_type) else {
+                let Some(value) = value_from_bytewise(message.param_value, message.param_type)
+                else {
                     eprintln!("client: [error] Type not supported mav_param value");
                     continue;
                 };

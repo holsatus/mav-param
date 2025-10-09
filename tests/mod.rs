@@ -1,4 +1,4 @@
-use mav_param::{Value, Tree, param_iter_named, get_value, set_value};
+use mav_param::{Tree, Value, get_value, param_iter_named, set_value};
 
 #[test]
 fn get_value_func() {

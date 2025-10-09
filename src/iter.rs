@@ -130,7 +130,6 @@ impl Iterator for ParamIter<'_> {
                         value: union.get(),
                     }));
                 }
-                // Maybe just handle it like
                 NodeRef::Leaf(value) => {
                     // Create a copy of the current path for the return value
                     let ident = self.ident_buffer.clone();
