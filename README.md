@@ -2,6 +2,10 @@
 
 Mavlink has a [parameter protocol](https://mavlink.io/en/services/parameter.html), that allows for enumerating, querying and modifying parameters based on an up to 16-character key, which maps to some primitive type (signed/unsigned integers and float) value. This allows for ground stations to request and list all parameters of systems that support the protocol, as well as save the config of a system as a flat list of keys and values. Even though Rusts type system allows for much more advanced types, supporting such a simple system would be beneficial for Mavlink capable MAV systems.
 
+
+
+---
+
 This library supports turning something like this:
 
 ```rust

@@ -8,9 +8,26 @@ defmt = ["dep:defmt"]
 serde = ["dep:serde"]
 
 [dependencies]
-heapless = "0.8"
+heapless = "0.9.1"
 mav-param-derive = { path = "mav-param-derive" }
 defmt = { version = "1.0", optional = true }
-serde = { version = "1.0", default-features = false, features = [
+serde = { version = "1.0.228", default-features = false, features = [
     "derive",
 ], optional = true }
+
+[dev-dependencies]
+mavio = { version = "0.5.10", features = ["common", "tokio"] }
+tokio = { version = "1.47.1", features = ["full"] }
+tokio-util = { version = "0.7.16", features = ["net", "codec", "io"] }
+bitflags = "2.9.4"
+serde = { version = "1.0.228", features = ["derive"] }
+rust-ini = "0.21.3"
+indexmap = "2.11.4"
+
+[[example]]
+name = "mavio-server"
+path = "examples/mavio-server/src/main.rs"
+
+[[example]]
+name = "mavio-client"
+path = "examples/mavio-client/src/main.rs"
