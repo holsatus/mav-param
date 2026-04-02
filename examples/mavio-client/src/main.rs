@@ -1,4 +1,4 @@
-use std::{sync::Arc, time::Duration};
+use std::{collections::BTreeMap, sync::{Arc, Mutex}, time::Duration};
 
 use indexmap::IndexMap;
 use mav_param::{Ident, Value};
@@ -6,7 +6,6 @@ use mavio::{dialects::common::enums::MavParamType, prelude::V2};
 use tokio::{
     io::{ReadHalf, WriteHalf},
     net::TcpStream,
-    sync::RwLock,
 };
 
 // Where our local parameter file is stored, used for restoring
@@ -15,53 +14,59 @@ const BACKUP_PARAM_PATH: &'static str = "examples/mavio-client/backup.param";
 // Where we will save the parameters we received from the vehicle
 const VEHICLE_PARAM_PATH: &'static str = "examples/mavio-client/vehicle.param";
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct Identity {
+    system: u8,
+    component: u8,
+}
+
 #[derive(Clone, Debug)]
 pub struct Parameters {
-    map: IndexMap<Ident, Value>,
+    map: BTreeMap<Ident, Value>,
 }
 
 #[derive(Clone, Debug)]
 pub struct ArcParameters {
-    inner: Arc<RwLock<IndexMap<(u8, u8), Parameters>>>,
+    inner: Arc<Mutex<BTreeMap<Identity, Parameters>>>,
 }
 
 impl ArcParameters {
     pub fn new() -> Self {
         Self {
-            inner: Arc::new(RwLock::new(IndexMap::new())),
+            inner: Arc::new(Mutex::new(BTreeMap::new())),
         }
     }
 
-    pub async fn insert(&self, id: (u8, u8), ident: &str, value: Value) {
-        let mut writer = self.inner.write().await;
+    pub fn insert(&self, id: Identity, ident: &str, value: Value) {
+        let mut param_map = self.inner.lock().unwrap();
 
-        match writer.get_mut(&id) {
+        match param_map.get_mut(&id) {
             Some(params) => {
                 params.map.insert(Ident::from_str_truncated(ident), value);
             }
             None => {
                 let mut params = Parameters {
-                    map: IndexMap::new(),
+                    map: BTreeMap::new(),
                 };
 
                 params.map.insert(Ident::from_str_truncated(ident), value);
-                writer.insert(id, params);
+                param_map.insert(id, params);
             }
         }
     }
 
-    pub async fn get_param(&self, id: (u8, u8), ident: &str) -> Option<Value> {
+    pub fn get_param(&self, id: Identity, ident: &str) -> Option<Value> {
         self.inner
-            .read()
-            .await
+            .lock()
+            .unwrap()
             .get(&id)?
             .map
             .get(&Ident::from_str_truncated(ident))
             .cloned()
     }
 
-    pub async fn get_table(&self, id: (u8, u8)) -> Option<Parameters> {
-        self.inner.read().await.get(&id).cloned()
+    pub fn get_table(&self, id: Identity) -> Option<Parameters> {
+        self.inner.lock().unwrap().get(&id).cloned()
     }
 }
 
@@ -93,6 +98,7 @@ pub async fn reader_half(reader: ReadHalf<TcpStream>, parameters: ArcParameters)
 
         use mavio::dialects::common::messages as m;
         match frame.message_id() {
+            m::Heartbeat::ID => {},
             m::ParamValue::ID => {
                 let message = match m::ParamValue::try_from(frame.payload()) {
                     Ok(message) => message,
@@ -109,15 +115,18 @@ pub async fn reader_half(reader: ReadHalf<TcpStream>, parameters: ArcParameters)
                     continue;
                 };
 
-                let mav_id = (frame.system_id(), frame.component_id());
+                let mav_id = Identity {
+                    system: frame.system_id(),
+                    component: frame.component_id(),
+                };
 
                 println!("client: [info] Saving: {:?} : {:?}", ident.as_str(), value);
 
-                parameters.insert(mav_id, ident.as_str(), value).await;
+                parameters.insert(mav_id, ident.as_str(), value);
 
                 if message.param_count == message.param_index.saturating_add(1) {
-                    if let Some(parameters) = parameters.get_table(mav_id).await {
-                        save_parameters(VEHICLE_PARAM_PATH, parameters);
+                    if let Some(parameters) = parameters.get_table(mav_id) {
+                        save_parameters_to_ini(VEHICLE_PARAM_PATH, parameters);
                     }
                 }
             }
@@ -155,11 +164,15 @@ pub async fn writer_half(writer: WriteHalf<TcpStream>, parameters: ArcParameters
 
         let loaded = load_parameters_from_ini(BACKUP_PARAM_PATH);
 
-        let mav_id = (frame.system_id(), frame.component_id());
+
+        let mav_id = Identity {
+            system: frame.system_id(),
+            component: frame.component_id(),
+        };
 
         for (key, value) in loaded.iter() {
             // If the value on the vehicle matches, do not send
-            match parameters.get_param(mav_id, key).await {
+            match parameters.get_param(mav_id, key) {
                 Some(vehicle_value) if vehicle_value == *value => continue,
                 _ => (),
             }
@@ -199,18 +212,17 @@ pub async fn writer_half(writer: WriteHalf<TcpStream>, parameters: ArcParameters
     }
 }
 
-// In your client code where you currently save the TOML file:
-fn save_parameters(path: impl AsRef<std::path::Path>, parameter_map: Parameters) {
+fn save_parameters_to_ini(path: impl AsRef<std::path::Path>, parameter_map: Parameters) {
     let mut config = ini::Ini::new();
 
     // Group parameters by their first segment
     for (key, value) in parameter_map.map.iter() {
-        let parts: Vec<&str> = key.as_str().splitn(2, '.').collect();
+        let parts: Vec<&str> = key.as_str().splitn(2, mav_param::SEP).collect();
 
         let (section, property) = if parts.len() > 1 {
             (Some(parts[0]), parts[1])
         } else {
-            (None, parts[0]) // Root section for items without dots
+            (None, parts[0])
         };
 
         // Convert value to string
@@ -260,18 +272,23 @@ fn load_parameters_from_ini(
             let (ty, val) = (ty.trim(), val.trim());
 
             // Try to parse into the expected type
-            let value = match ty {
-                "u8" => mav_param::Value::U8(val.parse::<u8>().unwrap()),
-                "i8" => mav_param::Value::I8(val.parse::<i8>().unwrap()),
-                "u16" => mav_param::Value::U16(val.parse::<u16>().unwrap()),
-                "i16" => mav_param::Value::I16(val.parse::<i16>().unwrap()),
-                "u32" => mav_param::Value::U32(val.parse::<u32>().unwrap()),
-                "i32" => mav_param::Value::I32(val.parse::<i32>().unwrap()),
-                "f32" => mav_param::Value::F32(val.parse::<f32>().unwrap()),
-                _ => panic!("Invalid type"), // Todo, return error
+            let parse = || {
+                Some(match ty {
+                    "u8" => mav_param::Value::U8(val.parse::<u8>().ok()?),
+                    "i8" => mav_param::Value::I8(val.parse::<i8>().ok()?),
+                    "u16" => mav_param::Value::U16(val.parse::<u16>().ok()?),
+                    "i16" => mav_param::Value::I16(val.parse::<i16>().ok()?),
+                    "u32" => mav_param::Value::U32(val.parse::<u32>().ok()?),
+                    "i32" => mav_param::Value::I32(val.parse::<i32>().ok()?),
+                    "f32" => mav_param::Value::F32(val.parse::<f32>().ok()?),
+                    _ => return None,
+                })
             };
 
-            parameter_map.insert(ident, value);
+            match parse() {
+                Some(value) => _ = parameter_map.insert(ident, value),
+                None => println!("client: Could not parse value ({val}) as type ({ty})"),
+            }
         }
     }
 

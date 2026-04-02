@@ -253,7 +253,7 @@ pub async fn main() {
             .await
             .unwrap();
 
-        tokio::time::sleep(Duration::from_millis(500)).await;
+        tokio::time::sleep(Duration::from_millis(1000)).await;
     }
 }
 
@@ -299,6 +299,8 @@ pub async fn reader_half(
                             m::ParamValue::crc_extra(),
                         ))
                         .await;
+
+                    tokio::time::sleep(Duration::from_millis(20)).await;
                 }
                 println!("server: [info] Done sending {} parameters", param_count);
             }
@@ -354,6 +356,8 @@ pub async fn reader_half(
                         m::ParamValue::crc_extra(),
                     ))
                     .await;
+
+                tokio::time::sleep(Duration::from_millis(20)).await;
             }
             m::CommandLong::ID => {
                 let command = match m::CommandLong::try_from(frame.payload()) {

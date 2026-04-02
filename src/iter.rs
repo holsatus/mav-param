@@ -3,7 +3,7 @@ use heapless::Vec;
 use crate::{Error, NodeRef, Parameter};
 
 /// Maximum "recursion" depth
-pub const MAX_STACK_DEPTH: usize = 5;
+pub const MAX_STACK_DEPTH: usize = 6;
 
 /// The state of a single "level" of tree iteration
 struct Segment<'a> {
@@ -247,7 +247,12 @@ mod tests {
 
         #[derive(Tree)]
         struct MaxDepthL4 {
-            e: u8,
+            e: MaxDepthL5,
+        }
+
+        #[derive(Tree)]
+        struct MaxDepthL5 {
+            f: u8,
         }
 
         // Create a tree that exceeds max depth
@@ -256,7 +261,7 @@ mod tests {
                 b: MaxDepthL2 {
                     c: MaxDepthL3 {
                         d: MaxDepthL4 {
-                            e: 42,
+                            e: MaxDepthL5 { f: 42 },
                         },
                     },
                 },

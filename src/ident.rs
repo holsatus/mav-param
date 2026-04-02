@@ -8,7 +8,7 @@ const MAX_NAMED_LEN: usize = 16;
 ///
 /// To get a utf8 string slice (`&str`), use [`Ident::as_str`]
 /// and for the null-terminated 16-byte buffer, use [`Ident::as_raw`].
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Ident {
     buf: [u8; MAX_NAMED_LEN],
@@ -122,7 +122,7 @@ impl Ident {
             self.len = entry.len();
             true
         } else if self.len + entry.len() < MAX_NAMED_LEN {
-            self.buf[self.len] = b'.';
+            self.buf[self.len] = crate::SEP as u8;
             self.len += 1;
             self.buf[self.len..(self.len + entry.len())].copy_from_slice(entry.as_bytes());
             self.len += entry.len();
@@ -135,7 +135,7 @@ impl Ident {
     /// Remove the last entry from the buffer
     pub(crate) fn pop_entry(&mut self) {
         // Find the last period and truncate there
-        if let Some(pos) = self.buf[..self.len].iter().rev().position(|b| *b == b'.') {
+        if let Some(pos) = self.buf[..self.len].iter().rev().position(|b| *b == crate::SEP as u8) {
             (self.len - pos - 1..self.len).for_each(|idx| self.buf[idx] = b'\0');
             self.len -= pos + 1;
         } else {
