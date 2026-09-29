@@ -15,13 +15,11 @@ pub trait Leaf: crate::Node {
 }
 
 /// Converts the float-encoded value into the correct primitive type.
-#[cfg(target_endian = "little")]
 pub fn from_bytewise<F: Floaty>(val: f32) -> F {
     F::from_bytewise(val)
 }
 
 /// Converts the primitive value into the float-encoded equivalent.
-#[cfg(target_endian = "little")]
 pub fn into_bytewise<F: Floaty>(val: F) -> f32 {
     F::into_bytewise(val)
 }
@@ -33,7 +31,6 @@ macro_rules! impl_primitive {
 
         /// Represents the value of a parameter.
         #[derive(Debug, Clone, Copy, PartialEq)]
-        #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
         #[cfg_attr(feature = "defmt", derive(defmt::Format))]
         pub enum Value {
             $( $variant($type), )+
@@ -49,24 +46,26 @@ macro_rules! impl_primitive {
         // An unsafe type that allows for byte-wise conversion between the inner types.
         //
         // This matches the Mavlink C API, and is why we do the same here. It is however
-        // only safe to use on little-endian systems. PRs for big-endian support are welcome.
+        // only safe to use on little-endian systems; other targets are rejected at
+        // compile time in `lib.rs`.
         #[repr(C)]
-        #[cfg(target_endian = "little")]
         union Bytewise {
             $( $type: $type, )+
         }
 
         $( impl Floaty for $type {
             #[inline(always)]
-            #[cfg(target_endian = "little")]
             fn from_bytewise(val: f32) -> $type {
                 unsafe { Bytewise { f32: val }.$type }
             }
 
             #[inline(always)]
-            #[cfg(target_endian = "little")]
             fn into_bytewise(self) -> f32 {
-                unsafe { Bytewise { $type: self }.f32 }
+                // Start from a zero-initialized float so that no uninitialized
+                // bytes are ever read when the value is smaller than 4 bytes.
+                let mut bytewise = Bytewise { f32: 0.0 };
+                bytewise.$type = self;
+                unsafe { bytewise.f32 }
             }
         } )+
 
@@ -104,7 +103,6 @@ macro_rules! impl_primitive {
             }
 
             /// Get the Mavlink-compatible bytewise representation of this [`Value`]
-            #[cfg(target_endian = "little")]
             pub fn into_bytewise(&self) -> f32 {
                 match self {
                     $( Value::$variant(v) => v.into_bytewise(), )+

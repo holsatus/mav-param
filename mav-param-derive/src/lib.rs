@@ -1,5 +1,6 @@
 use proc_macro::TokenStream;
 
+mod attrs;
 mod derive_enum;
 mod derive_node;
 mod derive_tree;

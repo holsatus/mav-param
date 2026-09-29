@@ -62,9 +62,9 @@ struct MavlinkParams {
 // with some renamed entries.
 #[derive(mav_param::Tree)]
 struct MavlinkId {
-    #[tree(rename = "sys")]
+    #[param(rename = "sys")]
     system_id: u8,
-    #[tree(rename = "com")]
+    #[param(rename = "com")]
     component_id: u8,
 }
 
@@ -94,14 +94,15 @@ We never had to explicitly define the full paths, for example `"mav.id.sys"`, si
 Alternatively we can index into the struct using a string, to modify a parameter:
 
 ```rust
-// Mutable get the mav system id by string-lookup
-match mav_param::get_value_mut(&mut mav, ".id.sys") {
-    Some(mav_param::ValueMut::U8(sys_id)) => *sys_id = 100
-    _ => println!("warn: No such parameter"),
+// Set the mav system id by string-lookup. The value is only written if the
+// stored parameter has the same type as the provided `Value`.
+match mav_param::set_value(&mut mav, ".id.sys", mav_param::Value::U8(100)) {
+    Some(()) => println!("updated mav.id.sys"),
+    None => println!("warn: No such parameter"),
 }
 ```
 
-We may notice that the syntax for the stringified key and the Rust code to access the same value is very similar, which is intentional. This even extends to tuples and arrays up to length 10 (though arrays also use the `arr.0` indexing syntax):
+We may notice that the syntax for the stringified key and the Rust code to access the same value is very similar, which is intentional. This even extends to tuples (up to length 10) and arrays (up to length 20, using the `arr.0` indexing syntax):
 
 ```rust
 #[derive(mav_param::Tree, Default)]
@@ -120,17 +121,11 @@ let mut param = Parameters::default()
 // Regular Rust syntax
 param.cfg.var.0 = 255;
 
-// Stringy syntax
-match mav_param::get_leaf_mut(&mut param, ".cfg.var.1") {
-    Some(mav_param::ValueMut::F32(var_0)) => *var_0 = 2.718,
-    _ => println!("warn: No such parameter"),
-}
+// Stringy syntax (only writes if the stored type is `f32`)
+mav_param::set_value(&mut param, ".cfg.var.1", mav_param::Value::F32(2.718));
 
 // Stringy syntax
-match mav_param::get_leaf_mut(&mut param, ".cfg.arr.7") {
-    Some(mav_param::ValueMut::F32(arr_7)) => *arr_7 = 3.1415,
-    _ => println!("warn: No such parameter"),
-}
+mav_param::set_value(&mut param, ".cfg.arr.7", mav_param::Value::F32(3.1415));
 ```
 
 And iterating all key-value pair would give:
@@ -181,12 +176,12 @@ let out_message = mav::ParamValue {
 
 ## Mavlink - Setting parameter
 
-A Mavlink request to set a parameter, e.g. [PARAM_SET](https://mavlink.io/en/messages/common.html#PARAM_SET), is very similar. Here we instead mutably look up the parameter with `mav_param::get_value_mut` and use the `from_bytewise` function to convert from the float into the desired type. Here it is important to do a manual type-check, to ensure the new value's type matches the original.
+A Mavlink request to set a parameter, e.g. [PARAM_SET](https://mavlink.io/en/messages/common.html#PARAM_SET), is very similar. Here we use the `from_bytewise` function to convert the float payload into the type announced by the GCS, then call `mav_param::set_value`. That function only writes the value if the stored parameter has the same type, so a type mismatch is reported by the `None` return.
 
 ```rust
 use your_mavlink_library as mav;
 use mav_param::{
-    Ident, ValueMut, get_value_mut,
+    Ident, Value, set_value,
     value::from_bytewise
 };
 
@@ -195,98 +190,26 @@ let in_message = mav::ParamSet::decode(payload)?;
 
 // Convert into a valid identifier and fetch the parameter
 let ident = Ident::try_from(&in_message.param_id)?;
-let value_mut = get_value_mut(&mut params, ident.as_str())?;
 
-// Get the float-value we need to convert
-let param_value = in_message.param_value;
-
-// Modify the value only if the parameter types match
+// Convert the float payload into the type announced by the GCS
 use mav::ParamType as T;
-match (value_mut, in_message.param_type) {
-    (ValueMut::U8(v),  T::Uint8)  => *v = from_bytewise::<u8>(param_value),
-    (ValueMut::I8(v),  T::Int8)   => *v = from_bytewise::<i8>(param_value),
-    (ValueMut::U16(v), T::Uint16) => *v = from_bytewise::<u16>(param_value),
-    (ValueMut::I16(v), T::Int16)  => *v = from_bytewise::<i16>(param_value),
-    // .. and so on, with an error in case of mismatching types
-    _ => return Err(Error::ParamTypeMismatch),
+let value = match in_message.param_type {
+    T::Uint8  => Value::U8(from_bytewise(in_message.param_value)),
+    T::Int8   => Value::I8(from_bytewise(in_message.param_value)),
+    T::Uint16 => Value::U16(from_bytewise(in_message.param_value)),
+    T::Int16  => Value::I16(from_bytewise(in_message.param_value)),
+    // .. and so on
+    _ => return Err("parameter type is not supported by mav_param"),
 };
+
+// Only written if the parameter exists and has the matching type
+if set_value(&mut params, ident.as_str(), value).is_none() {
+    return Err("attempted to set parameter using the wrong type");
+}
 
 // We should now respond with our new value to confirm..
 ```
 
 # Implementation
 
-This library relies on a deriving the `mav_param::Tree` on strucs, where each field/entry implements the `mav_param::Node` trait, which allows for converting the field into either a primitive type/value, or another `Tree`. Anything that that is a `Tree` or supported primitives automatically `Node`. This is what allows for using composition to combine structs, tuples, arrays and primitives into a data type that can be iterated to generate all stringy identifiers.
-
-## Limitations
-
-The main limitation is that the types we can represent are fairly basic, due to how the non-extended parameter protocol works. So all paths in the tree must end up at one of the following primitive types. Technically the protocol also supports f64, u64 and i64, but since the payload can only be 32 bits, it makes more sense to do without.
-
-```rust
-pub enum Value {
-    U8(u8),
-    I8(i8),
-    U16(u16),
-    I16(i16),
-    U32(u32),
-    I32(i32),
-    F32(f32),
-}
-```
-
-Thus, working with tagged unions/enums with values, including `Option<T>` is not easily doable. One workaround for optional values is to have one parameter act as a flag (for example using `bitflags`) to designate whether some other parameter should be considered a `Some` variant, or to be ignored. Consider the following example.
-
-```rust
-// Normal Rust struct with optionals
-struct OptionalStruct {
-    value1: Option<i32>,
-    value2: Option<(f32, f32)>,
-}
-
-// .. may be represented as follows:
-#[derive(mav_param::Tree)]
-struct OptionalParams {
-    opt: Optional,
-    value1: i32,
-    value2: (f32, f32),
-}
-
-#[derive(mav_param::Node)]
-struct Optional(u8);
-
-bitflags::bitflags! {
-    impl Optional: u8 {
-        // Each optional get a unique bit
-        const VALUE_1 = 1 << 0;
-        const VALUE_2 = 1 << 1;
-    }
-}
-
-// .. with implementations to convert between the
-// Rust-idiomatic representation, to the Mavlink
-// compatible parameter representetion:
-
-impl From<OptionalParams> for OptionalStruct {
-    fn from(params: OptionalParams) -> Self {
-        OptionalStruct {
-            value1: params.opt.contains(Optional::VALUE_1).then(||params.value1),
-            value2: params.opt.contains(Optional::VALUE_2).then(||params.value2),
-        }
-    }
-}
-
-impl From<OptionalStruct> for OptionalParams {
-    fn from(params: OptionalStruct) -> Self {
-        let mut opt = Optional::empty();
-        opt.set(Optional::VALUE_1, params.value1.is_some());
-        opt.set(Optional::VALUE_2, params.value2.is_some());
-        OptionalParams {
-            opt,
-            value1: params.value1.unwrap_or_default(),
-            value2: params.value2.unwrap_or_default(),
-        }
-    }
-}
-```
-
-This is by no means ideal, but creates a workable conversion between the idiomatic struct, and something that can be sent as Mavlink parameters. If anyone has suggestions for how this can be simplified, either within the derive macro, or by using a declarative helper macro, please open an issue or PR!
+This library relies on deriving the `mav_param::Tree` on structs, where each field/entry implements the `mav_param::Node` trait, which allows for converting the field into either a primitive type/value, or another `Tree`. Both `Tree`s and the supported primitives implement `Node`. This is what allows for using composition to combine structs, tuples, arrays and primitives into a data type that can be iterated to generate all stringy identifiers.

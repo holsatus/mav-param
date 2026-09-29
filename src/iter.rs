@@ -104,6 +104,16 @@ impl Iterator for ParamIter<'_> {
                 NodeRef::Enum(union) => {
                     let entry_name = "#";
 
+                    // Advance to the active variant *before* any early return, so
+                    // that a failed push below still makes progress (otherwise this
+                    // arm would yield the same error forever).
+                    let active = union.active_node_ref();
+                    let discriminant = union.get();
+                    *segment = Segment {
+                        node_ref: active,
+                        index: 0,
+                    };
+
                     // Add this enum segment to the path (temporarily)
                     if !self.ident_buffer.push_entry(entry_name) {
                         return Some(Err(Error::PathTooLong(
@@ -118,16 +128,10 @@ impl Iterator for ParamIter<'_> {
                     // Remove the temporary segment from our buffer
                     self.ident_buffer.pop_entry();
 
-                    // Set the current node as the active variant
-                    *segment = Segment {
-                        node_ref: union.active_node_ref(),
-                        index: 0,
-                    };
-
                     // Return the discriminant as the value
                     return Some(Ok(Parameter {
                         ident,
-                        value: union.get(),
+                        value: discriminant,
                     }));
                 }
                 NodeRef::Leaf(value) => {

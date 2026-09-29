@@ -1,6 +1,12 @@
 #![cfg_attr(not(test), no_std)]
 #![warn(clippy::pedantic)]
 
+#[cfg(not(target_endian = "little"))]
+compile_error!(
+    "mav-param only supports little-endian targets: its byte-wise parameter \
+     conversion relies on little-endian memory layout"
+);
+
 pub use mav_param_derive::{Enum, Node, Tree};
 
 pub mod ident;
@@ -47,7 +53,6 @@ pub enum NodeMut<'a> {
 
 /// A parameter combines a 16-byte identifier with a value.
 #[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct Parameter {
     pub ident: ident::Ident,
@@ -87,7 +92,7 @@ pub trait Node: Send + Sync {
     /// to allow for working with the specific variants.
     fn node_ref<'a>(&'a self) -> NodeRef<'a>;
 
-    /// Turn a dynamic implementor of [`Node`] into a [`NodeRef`]
+    /// Turn a dynamic implementor of [`Node`] into a [`NodeMut`]
     /// to allow for working with the specific variants.
     fn node_mut<'a>(&'a mut self) -> NodeMut<'a>;
 }
@@ -134,7 +139,16 @@ pub fn get_value(tree_ref: &dyn Node, ident: &str) -> Option<value::Value> {
 
                 continue;
             }
-            NodeRef::Leaf(leaf_ref) => return Some(leaf_ref.get()),
+            NodeRef::Leaf(leaf_ref) => {
+                // Only resolve the leaf if the whole path has been consumed.
+                // The empty path denotes the root node itself, so it also counts.
+                let exhausted = next.is_none_or(str::is_empty) && segments.next().is_none();
+                return if exhausted {
+                    Some(leaf_ref.get())
+                } else {
+                    None
+                };
+            }
         }
     }
 }
@@ -163,7 +177,16 @@ pub fn set_value(tree_mut: &mut dyn Node, ident: &str, value: Value) -> Option<(
 
                 continue;
             }
-            NodeMut::Leaf(leaf_ref) => return leaf_ref.set(value).then(|| ()),
+            NodeMut::Leaf(leaf_ref) => {
+                // Only modify the leaf if the whole path has been consumed.
+                // The empty path denotes the root node itself, so it also counts.
+                let exhausted = next.is_none_or(str::is_empty) && segments.next().is_none();
+                return if exhausted {
+                    leaf_ref.set(value).then_some(())
+                } else {
+                    None
+                };
+            }
         }
     }
 }
