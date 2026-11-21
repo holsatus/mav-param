@@ -25,7 +25,8 @@ pub fn node_derive(input: TokenStream) -> TokenStream {
 /// This macro automatically implements the `Enum` and `Node` traits for enums, enabling
 /// them to be used within the parameter tree as tagged unions.
 ///
-/// Each variant must have a single field and a discriminant value.
+/// The enum needs a `#[repr(u8 | i8 | u16 | i16 | u32 | i32)]` attribute. Each variant
+/// has either no fields or a single unnamed field.
 ///
 /// Example:
 /// ```rust

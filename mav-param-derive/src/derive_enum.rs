@@ -1,8 +1,8 @@
 use proc_macro::TokenStream;
-use quote::{quote, ToTokens};
+use quote::{format_ident, quote, ToTokens};
 use syn::{
     parse_macro_input, punctuated::Punctuated, spanned::Spanned, Attribute, Data, DeriveInput,
-    Expr, ExprLit, Fields, Ident, Lit, LitInt, Token,
+    Fields, Ident, Token,
 };
 
 use crate::attrs::parse_param_attrs;
@@ -43,10 +43,12 @@ fn enum_derive_impl(input: &DeriveInput) -> syn::Result<proc_macro2::TokenStream
     };
 
     // All variants must share a single primitive representation
-    let value_variant = get_repr_mav_param_value(&input.attrs, input.span())?;
+    let (repr, value_variant) = get_repr_mav_param_value(&input.attrs, input.span())?;
 
-    // Start at zero, or at the explicitly given discriminant
-    let mut discriminant: i64 = 0;
+    // The macro cannot evaluate discriminant expressions, so each variant gets a
+    // `const` that the compiler evaluates, typed as the repr to check range and sign.
+    let mut discriminant_consts = Vec::with_capacity(variants.len());
+    let mut prev_const: Option<Ident> = None;
 
     // Each variant's match arm in the implementations
     let mut discriminant_list = Vec::with_capacity(variants.len());
@@ -55,7 +57,7 @@ fn enum_derive_impl(input: &DeriveInput) -> syn::Result<proc_macro2::TokenStream
     let mut get_discriminant = Vec::with_capacity(variants.len());
     let mut set_discriminant = Vec::with_capacity(variants.len());
 
-    for variant in variants {
+    for (index, variant) in variants.iter().enumerate() {
         let variant_name = &variant.ident;
 
         let variant_type = match &variant.fields {
@@ -69,14 +71,17 @@ fn enum_derive_impl(input: &DeriveInput) -> syn::Result<proc_macro2::TokenStream
             }
         };
 
-        if let Some((_, expr)) = &variant.discriminant {
-            discriminant = parse_discriminant(expr)?;
-        }
-
-        let discriminant_tokens = discriminant
-            .to_string()
-            .parse::<proc_macro2::TokenStream>()
-            .expect("integer literal is always a valid token stream");
+        // Mirror the compiler's rules: explicit value, else previous + 1, else 0
+        let discriminant_tokens = format_ident!("__MAV_PARAM_D{}", index);
+        let value = match (&variant.discriminant, &prev_const) {
+            (Some((_, expr)), _) => quote! { #expr },
+            (None, Some(prev)) => quote! { #prev + 1 },
+            (None, None) => quote! { 0 },
+        };
+        discriminant_consts.push(quote! {
+            const #discriminant_tokens: #repr = #value;
+        });
+        prev_const = Some(discriminant_tokens.clone());
 
         discriminant_list.push(quote! {
             #value_variant(#discriminant_tokens),
@@ -121,113 +126,71 @@ fn enum_derive_impl(input: &DeriveInput) -> syn::Result<proc_macro2::TokenStream
                 #value_variant(#discriminant_tokens) => *self = Self::#variant_name(#default),
             },
         });
-
-        discriminant += 1;
     }
 
-    // Generate the implementations
+    // Generate the implementations. The anonymous const scopes the discriminant
+    // consts to these impls without leaking them into the user's namespace.
     let output = quote! {
-        impl mav_param::Node for #name {
-            fn node_ref(&self) -> mav_param::NodeRef<'_> {
-                mav_param::NodeRef::Enum(self)
-            }
+        const _: () = {
+            #(#discriminant_consts)*
 
-            fn node_mut(&mut self) -> mav_param::NodeMut<'_> {
-                mav_param::NodeMut::Enum(self)
-            }
-        }
+            impl mav_param::Node for #name {
+                fn node_ref(&self) -> mav_param::NodeRef<'_> {
+                    mav_param::NodeRef::Enum(self)
+                }
 
-        impl<'a> mav_param::Enum<'a> for #name {
-            fn discriminants(&self) -> &'static [mav_param::Value] {
-                &[ #(#discriminant_list)* ]
-            }
-
-            fn active_node_ref(&'a self) -> mav_param::NodeRef<'a> {
-                use mav_param::Node;
-                match self {
-                    #(#active_variant_ref)*
+                fn node_mut(&mut self) -> mav_param::NodeMut<'_> {
+                    mav_param::NodeMut::Enum(self)
                 }
             }
 
-            fn active_node_mut(&'a mut self) -> mav_param::NodeMut<'a> {
-                use mav_param::Node;
-                match self {
-                    #(#active_variant_mut)*
+            impl<'a> mav_param::Enum<'a> for #name {
+                fn discriminants(&self) -> &'static [mav_param::Value] {
+                    &[ #(#discriminant_list)* ]
                 }
-            }
-        }
 
-        impl mav_param::Leaf for #name {
-            fn get(&self) -> mav_param::Value {
-                match self {
-                   #(#get_discriminant)*
+                fn active_node_ref(&'a self) -> mav_param::NodeRef<'a> {
+                    use mav_param::Node;
+                    match self {
+                        #(#active_variant_ref)*
+                    }
+                }
+
+                fn active_node_mut(&'a mut self) -> mav_param::NodeMut<'a> {
+                    use mav_param::Node;
+                    match self {
+                        #(#active_variant_mut)*
+                    }
                 }
             }
 
-            fn set(&mut self, val: mav_param::Value) -> bool {
-                match val {
-                   #(#set_discriminant)*
-                   _ => return false,
+            impl mav_param::Leaf for #name {
+                fn get(&self) -> mav_param::Value {
+                    match self {
+                       #(#get_discriminant)*
+                    }
                 }
-                return true;
+
+                fn set(&mut self, val: mav_param::Value) -> bool {
+                    match val {
+                       #(#set_discriminant)*
+                       _ => return false,
+                    }
+                    return true;
+                }
             }
-        }
+        };
     };
 
     Ok(output)
 }
 
-/// Parse a non-negative integer discriminant, accepting decimal, hex, octal and
-/// binary literals. Expressions and negative values are rejected.
-fn parse_discriminant(expr: &Expr) -> syn::Result<i64> {
-    if let Expr::Lit(ExprLit {
-        lit: Lit::Int(lit_int),
-        ..
-    }) = expr
-    {
-        parse_int_literal(lit_int)
-    } else {
-        Err(syn::Error::new_spanned(
-            expr,
-            "discriminants must be non-negative integer literals; \
-             constants, expressions and negative values are not supported",
-        ))
-    }
-}
-
-/// Parse an integer literal in any radix into an `i64`.
-fn parse_int_literal(lit: &LitInt) -> syn::Result<i64> {
-    let text = lit.to_string();
-
-    // `strip_suffix("")` returns the input, so this also handles suffix-less literals
-    let body = text.strip_suffix(lit.suffix()).unwrap_or(&text);
-
-    let (radix, digits) =
-        if let Some(digits) = body.strip_prefix("0x").or_else(|| body.strip_prefix("0X")) {
-            (16, digits)
-        } else if let Some(digits) = body.strip_prefix("0o").or_else(|| body.strip_prefix("0O")) {
-            (8, digits)
-        } else if let Some(digits) = body.strip_prefix("0b").or_else(|| body.strip_prefix("0B")) {
-            (2, digits)
-        } else {
-            (10, body)
-        };
-
-    let digits: String = digits.chars().filter(|c| *c != '_').collect();
-
-    i64::from_str_radix(&digits, radix).map_err(|_| {
-        syn::Error::new_spanned(
-            lit,
-            "discriminant is not a valid 64-bit non-negative integer literal",
-        )
-    })
-}
-
-/// Extract the enum representation type from its `#[repr(...)]` attribute.
+/// Extract the enum representation type from its `#[repr(...)]` attribute,
+/// returning the repr type and the matching `Value` variant.
 fn get_repr_mav_param_value(
     attrs: &[Attribute],
     span: proc_macro2::Span,
-) -> syn::Result<proc_macro2::TokenStream> {
+) -> syn::Result<(Ident, proc_macro2::TokenStream)> {
     for attr in attrs {
         if attr.path().is_ident("repr") {
             let idents = attr.parse_args_with(Punctuated::<Ident, Token![,]>::parse_terminated)?;
@@ -245,7 +208,7 @@ fn get_repr_mav_param_value(
                     _ => continue,
                 };
 
-                return Ok(matched);
+                return Ok((ident, matched));
             }
         }
     }
