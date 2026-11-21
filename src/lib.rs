@@ -35,6 +35,32 @@ pub enum Error {
     SequenceNotUtf8,
 }
 
+impl core::fmt::Display for Error {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Error::PathTooLong(ident, entry) => write!(
+                f,
+                "parameter path \"{}\" cannot be extended with \"{entry}\": \
+                 identifiers are limited to 16 bytes",
+                ident.as_str()
+            ),
+            Error::DepthTooBig(ident, entry) => write!(
+                f,
+                "parameter tree is nested too deeply at \"{}.{entry}\": \
+                 the maximum depth is {}",
+                ident.as_str(),
+                iter::MAX_STACK_DEPTH
+            ),
+            Error::SequenceTooLong => {
+                write!(f, "sequence is too long to be a parameter identifier")
+            }
+            Error::SequenceNotUtf8 => write!(f, "sequence is not valid utf8"),
+        }
+    }
+}
+
+impl core::error::Error for Error {}
+
 /// A reference to either another tree or a value
 pub enum NodeRef<'a> {
     None,
@@ -53,6 +79,7 @@ pub enum NodeMut<'a> {
 
 /// A parameter combines a 16-byte identifier with a value.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct Parameter {
     pub ident: ident::Ident,

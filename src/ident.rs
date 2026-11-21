@@ -9,9 +9,43 @@ const MAX_NAMED_LEN: usize = 16;
 /// To get a utf8 string slice (`&str`), use [`Ident::as_str`]
 /// and for the null-terminated 16-byte buffer, use [`Ident::as_raw`].
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(try_from = "RawIdent"))]
+// Deserialization is validated through `RawIdent`, so the invariants
+// that `as_str` relies on cannot be violated by untrusted input.
+#[cfg_attr(feature = "serde", allow(clippy::unsafe_derive_deserialize))]
 pub struct Ident {
     buf: [u8; MAX_NAMED_LEN],
     len: usize,
+}
+
+/// Unvalidated mirror of [`Ident`], used so deserialization keeps the same
+/// format as the derived `Serialize` while upholding the `len <= 16` and
+/// valid-UTF-8 invariants that [`Ident::as_str`] relies on for soundness.
+#[cfg(feature = "serde")]
+#[derive(serde::Deserialize)]
+#[serde(rename = "Ident")]
+struct RawIdent {
+    buf: [u8; MAX_NAMED_LEN],
+    len: usize,
+}
+
+#[cfg(feature = "serde")]
+impl TryFrom<RawIdent> for Ident {
+    type Error = crate::Error;
+
+    fn try_from(raw: RawIdent) -> Result<Self, Self::Error> {
+        if raw.len > MAX_NAMED_LEN {
+            return Err(crate::Error::SequenceTooLong);
+        }
+        let string =
+            core::str::from_utf8(&raw.buf[..raw.len]).map_err(|_| crate::Error::SequenceNotUtf8)?;
+
+        let mut ident = Ident::new();
+        ident.buf[..string.len()].copy_from_slice(string.as_bytes());
+        ident.len = string.len();
+        Ok(ident)
+    }
 }
 
 impl core::fmt::Debug for Ident {
